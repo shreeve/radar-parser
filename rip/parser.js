@@ -4009,7 +4009,7 @@ while (true) {
       }
       case 'COMPOUND_ASSIGN': {
         const op = this._match('COMPOUND_ASSIGN');
-        const right = this.parseExpression();
+        const right = this.parseValue();
         const [$$1, $$2, $$3] = [left, op, right];
         left = [op, left, right];
         break;
