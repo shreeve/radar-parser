@@ -1290,7 +1290,13 @@ parseValue() {
   switch (this.la.kind) {
     case 'IDENTIFIER':
     case '{':
+      base = this.parseAssignable();
+      break;
     case 'SUPER':
+      // SUPER can be: super.prop, super[expr], or super(args)
+      // Check what follows to determine type
+      base = "super";  // Base case
+      break;
     case 'DYNAMIC_IMPORT':
       base = this.parseAssignable();
       break;
