@@ -2173,11 +2173,17 @@ class Generator
       return ["array"];
     }
 
-    // Check if it starts with comma (elisions only: [,,3])
+    // Check if it starts with comma (elisions: [,1] or [,,3])
     if (this.la.kind === ',') {
-      const elisions = this.parseElisions();
+      // Use ArgElisionList to handle elisions + elements
+      const list = this.parseArgElisionList();
+      // Check for OptElisions (trailing elisions)
+      let trailing = [];
+      if (this.la.kind === ',') {
+        trailing = this.parseOptElisions();
+      }
       this._match(']');
-      return ["array", ...elisions];
+      return ["array", ...list, ...trailing];
     }
 
     // Parse first element/expression
