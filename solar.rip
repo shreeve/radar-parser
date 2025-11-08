@@ -877,6 +877,8 @@ class Generator
         func = @_generateTrySpecial(rules)
       else if typeName is 'ForVariables'
         func = @_generateForVariablesSpecial(rules)
+      else if typeName is 'Switch'
+        func = @_generateSwitchSpecial(rules)
       else if typeName.endsWith('Tail') and rules.length is 3
         # Special handling for *Tail recursion patterns with 3 rules
         # (separator+element+tail, separator+tail, epsilon)
@@ -898,7 +900,7 @@ class Generator
       # Wrap with recursion depth tracking (but not for special handlers that already have structure)
       if func
         # Special handlers shouldn't be wrapped as they have custom logic
-        specialHandlers = ['Root', 'Expression', 'For', 'Def', 'Block', 'If', 'Assign', 'Assignable', 'Value', 'ArgList', 'ArgElisionList', 'Array', 'Object', 'AssignList', 'AssignObj', 'InterpolationChunk', 'Slice', 'Class', 'Param', 'Return', 'Yield', 'Try', 'ForVariables']
+        specialHandlers = ['Root', 'Expression', 'For', 'Def', 'Block', 'If', 'Assign', 'Assignable', 'Value', 'ArgList', 'ArgElisionList', 'Array', 'Object', 'AssignList', 'AssignObj', 'InterpolationChunk', 'Slice', 'Class', 'Param', 'Return', 'Yield', 'Try', 'ForVariables', 'Switch']
         isSpecial = (specialHandlers.indexOf(typeName) >= 0) or typeName.endsWith('Tail')
         if isSpecial
           # console.log "NOT wrapping #{typeName} (special handler)"
@@ -2758,16 +2760,52 @@ class Generator
     '''
   parseForVariables() {
     const first = this.parseForValue();
-    
+
     // Check for comma (two variables: value, index)
     if (this.la.kind === ',') {
       this._match(',');
       const second = this.parseForValue();
       return [first, second];
     }
-    
+
     // Just one variable
     return [first];
+  }
+'''
+
+  # Special handling for Switch (with or without discriminant)
+  _generateSwitchSpecial: (rules) ->
+    # Switch has 4 rules:
+    # 1. SWITCH Expression INDENT Whens OUTDENT → ["switch", 2, 4, null]
+    # 2. SWITCH Expression INDENT Whens ELSE Block OUTDENT → ["switch", 2, 4, 6]
+    # 3. SWITCH INDENT Whens OUTDENT → ["switch", null, 3, null]
+    # 4. SWITCH INDENT Whens ELSE Block OUTDENT → ["switch", null, 3, 5]
+    '''
+  parseSwitch() {
+    this._match('SWITCH');
+    
+    // Lookahead: if INDENT, no discriminant; otherwise parse Expression
+    let discriminant = null;
+    if (this.la.kind !== 'INDENT') {
+      discriminant = this.parseExpression();
+    }
+    
+    // Now expect INDENT
+    this._match('INDENT');
+    
+    // Parse when clauses
+    const whens = this.parseWhens();
+    
+    // Check for ELSE
+    let elseBlock = null;
+    if (this.la.kind === 'ELSE') {
+      this._match('ELSE');
+      elseBlock = this.parseBlock();
+    }
+    
+    this._match('OUTDENT');
+    
+    return ["switch", discriminant, whens, elseBlock];
   }
 '''
 

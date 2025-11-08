@@ -3209,37 +3209,43 @@ switch (this.la.kind) {    case 'IDENTIFIER':
 
 parseForVariables() {
   const first = this.parseForValue();
-  
+
   // Check for comma (two variables: value, index)
   if (this.la.kind === ',') {
     this._match(',');
     const second = this.parseForValue();
     return [first, second];
   }
-  
+
   // Just one variable
   return [first];
 }
 
 parseSwitch() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseSwitch(). Possible grammar cycle.");
-}
-try {
-switch (this.la.kind) {    case 'SWITCH':
-      {
-      const $$1 = this._match('SWITCH');
-      const $$2 = this._match('INDENT');
-      const $$3 = this.parseWhens();
-      const $$4 = this._match('OUTDENT');
-      return ["switch", null, $$3, null];
-      }default:      this._error(['SWITCH'], "Invalid Switch");  }
-  } finally {
-    this.depth--;
+  this._match('SWITCH');
+  
+  // Lookahead: if INDENT, no discriminant; otherwise parse Expression
+  let discriminant = null;
+  if (this.la.kind !== 'INDENT') {
+    discriminant = this.parseExpression();
   }
+  
+  // Now expect INDENT
+  this._match('INDENT');
+  
+  // Parse when clauses
+  const whens = this.parseWhens();
+  
+  // Check for ELSE
+  let elseBlock = null;
+  if (this.la.kind === 'ELSE') {
+    this._match('ELSE');
+    elseBlock = this.parseBlock();
+  }
+  
+  this._match('OUTDENT');
+  
+  return ["switch", discriminant, whens, elseBlock];
 }
 
 parseWhens() {
