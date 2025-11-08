@@ -3806,24 +3806,24 @@ while (true) {
       case 'FOR': {
         // Comprehension: Expression FOR ForVariables FORIN/FOROF/FORFROM Expression ...
         this._match('FOR');
-        
+
         // Check for AWAIT (for-from)
         let isAsync = false;
         if (this.la.kind === 'AWAIT') {
           this._match('AWAIT');
           isAsync = true;
         }
-        
+
         // Check for OWN (for-of)
         let isOwn = false;
         if (this.la.kind === 'OWN') {
           this._match('OWN');
           isOwn = true;
         }
-        
+
         // Parse variables
         const vars = this.parseForVariables();
-        
+
         // Determine loop type
         let loopType;
         if (this.la.kind === 'FORIN') {
@@ -3838,24 +3838,31 @@ while (true) {
         } else {
           this._error(['FORIN', 'FOROF', 'FORFROM'], "Expected for loop type");
         }
-        
+
         // Parse iterable
         const iterable = this.parseValue();  // Use Value to avoid cycles
-        
+
         // Parse optional BY (step)
         let step = null;
         if (this.la.kind === 'BY') {
           this._match('BY');
           step = this.parseValue();
         }
-        
+
         // Parse optional WHEN (guard)
         let guard = null;
         if (this.la.kind === 'WHEN') {
           this._match('WHEN');
+          // Parse guard - need to handle comparisons, so parse as mini-operation
+          // First parse a value, then check for comparison operators
           guard = this.parseValue();
+          if (this.la.kind === 'COMPARE' || this.la.kind === 'RELATION' || this.la.kind === '&&' || this.la.kind === '||') {
+            const op = this._match(this.la.kind);
+            const right = this.parseValue();
+            guard = [op, guard, right];
+          }
         }
-        
+
         // Build loop spec based on type
         let loopSpec;
         if (loopType === 'for-in') {
@@ -3865,7 +3872,7 @@ while (true) {
         } else {
           loopSpec = [loopType, vars, iterable, isAsync, null];
         }
-        
+
         // Build comprehension
         // NOTE: 'left' at this point is the full expression including any operators
         // e.g., for "sum += i for i in arr", left is already ["+=" "sum" "i"]
