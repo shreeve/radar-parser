@@ -1748,8 +1748,10 @@ class Generator
       }
 
       // Check what comes next: ForVariables or Range
-      if (this.la.kind === '[') {
+      // Note: Range loops (FOR [1..10]) are only valid without AWAIT/OWN
+      if (this.la.kind === '[' && !hasAwait && !hasOwn) {
         // FOR Range Block (simple range-based loop)
+        // Limitation: This means FOR [a, b] IN won't parse (use FOR AWAIT [a, b] FROM)
         const range = this.parseRange();
 
         // Optional BY
