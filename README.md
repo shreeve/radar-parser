@@ -3,7 +3,7 @@
 **Generate blazing-fast recursive descent parsers from LL(1) grammars**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-756%2F938%20(80.6%25)-brightgreen)](test/)
+[![Tests](https://img.shields.io/badge/Tests-766%2F938%20(81.7%25)-brightgreen)](test/)
 [![Parser](https://img.shields.io/badge/Parser-99%2F99%20functions-brightgreen)](#)
 
 ---
@@ -51,16 +51,17 @@ cd radar
 ```bash
 # Run the test suite
 bun run test
-# Output: 756/938 tests passing (80.6%) - OVER 80%!
+# Output: 766/938 tests passing (81.7%) - OVER 80%!
 
-# Perfect test files (100%)
+# 9 Perfect test files (325/325 tests at 100%)
 bun run test:operators    # 96/96 ✅
 bun run test:literals     # 30/30 ✅
-# Also perfect: properties (29), strings (78), arrows (10)
+bun run test:assignment   # 46/46 ✅
+bun run test:basic        # 54/54 ✅
+# Also perfect: properties (29), strings (78), arrows (10), data (18), parens (25)
 
 # Nearly perfect (95%+)
-bun run test:assignment   # 45/46 (97.8%)
-bun run test:basic        # 49/54 (90.7%)
+# functions 78/81 (96.3%), compatibility 45/46 (97.8%)
 ```
 
 ### Generate Your Own Parser
@@ -234,18 +235,19 @@ JavaScript: let x;\nx = 5;
 ### Test Results
 
 ```
-Full Suite:     756/938 tests (80.6%) ✅ OVER 80%!
+Full Suite:     766/938 tests (81.7%) ✅ OVER 80%!
 Perfect Files:  operators.rip (96/96, 100%)
                 literals.rip (30/30, 100%)
                 properties.rip (29/29, 100%)
                 strings.rip (78/78, 100%)
                 arrows.rip (10/10, 100%)
                 data.rip (18/18, 100%)
-                → 6 files, 261 tests at 100%!
-Nearly Perfect: assignment.rip (45/46, 97.8%)
-                compatibility.rip (45/46, 97.8%)
+                assignment.rip (46/46, 100%)
+                parens.rip (25/25, 100%)
+                basic.rip (54/54, 100%)
+                → 9 files, 325 tests at 100%!
+Nearly Perfect: compatibility.rip (45/46, 97.8%)
                 functions.rip (78/81, 96.3%)
-                parens.rip (24/25, 96.0%)
 ```
 
 ### What Works
@@ -765,17 +767,17 @@ With significant contributions to:
 **Radar provides a complete toolkit for building high-performance parsers:**
 
 ✅ **Solar** - Universal parser generator (SLR + RD modes)
-✅ **Working Compilers** - Rip (80.6%) + BUMPS (ready)
+✅ **Working Compilers** - Rip (81.7%) + BUMPS (ready)
 ✅ **Clean Architecture** - Lexer/Parser/CodeGen separation
 ✅ **Real Performance** - 5-10x faster than table-driven
-✅ **Production Ready** - 756/938 tests passing, actively improving
+✅ **Production Ready** - 766/938 tests passing, 9 files at 100%
 
 **Try it:**
 ```bash
 git clone https://github.com/shreeve/radar.git
 cd radar
 bun run test
-# See 80.6% passing - SIX files at 100%!
+# See 81.7% passing - NINE files at 100%!
 ```
 
 **This is parser generation done right!** 🚀
