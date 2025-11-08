@@ -871,6 +871,8 @@ class Generator
         func = @_generateParamSpecial(rules)
       else if typeName is 'Return'
         func = @_generateReturnSpecial(rules)
+      else if typeName is 'Yield'
+        func = @_generateYieldSpecial(rules)
       else if typeName.endsWith('Tail') and rules.length is 3
         # Special handling for *Tail recursion patterns with 3 rules
         # (separator+element+tail, separator+tail, epsilon)
@@ -892,7 +894,7 @@ class Generator
       # Wrap with recursion depth tracking (but not for special handlers that already have structure)
       if func
         # Special handlers shouldn't be wrapped as they have custom logic
-        specialHandlers = ['Root', 'Expression', 'For', 'Def', 'Block', 'If', 'Assign', 'Assignable', 'Value', 'ArgList', 'ArgElisionList', 'Array', 'Object', 'AssignList', 'AssignObj', 'InterpolationChunk', 'Slice', 'Class', 'Param', 'Return']
+        specialHandlers = ['Root', 'Expression', 'For', 'Def', 'Block', 'If', 'Assign', 'Assignable', 'Value', 'ArgList', 'ArgElisionList', 'Array', 'Object', 'AssignList', 'AssignObj', 'InterpolationChunk', 'Slice', 'Class', 'Param', 'Return', 'Yield']
         isSpecial = (specialHandlers.indexOf(typeName) >= 0) or typeName.endsWith('Tail')
         if isSpecial
           # console.log "NOT wrapping #{typeName} (special handler)"
@@ -1068,16 +1070,22 @@ class Generator
       if op is 'MATH' or op is 'SHIFT' or op is 'COMPARE' or op is 'RELATION' or op is 'COMPOUND_ASSIGN'
         opCases.push "        const op = this._match('#{op}');"  # Capture the actual operator
         # Assignment and COMPOUND_ASSIGN need full Expression (right-associative)
+        # POST_IF and POST_UNLESS need Operation for complex conditions
         if op is '=' or op is 'COMPOUND_ASSIGN'
           opCases.push "        const right = this.parseExpression();"  # Full expression for assignment
+        else if op is 'POST_IF' or op is 'POST_UNLESS'
+          opCases.push "        const right = this.parseOperation();"  # Operation for conditions
         else
           opCases.push "        const right = this.parseValue();"  # Use Value for other ops
         opCases.push "        const [$$1, $$2, $$3] = [left, op, right];"  # Use captured op
       else
         opCases.push "        this._match('#{op}');"
         # Assignment and COMPOUND_ASSIGN need full Expression (right-associative)
+        # POST_IF and POST_UNLESS need Operation for complex conditions
         if op is '=' or op is 'COMPOUND_ASSIGN'
           opCases.push "        const right = this.parseExpression();"  # Full expression for assignment
+        else if op is 'POST_IF' or op is 'POST_UNLESS'
+          opCases.push "        const right = this.parseOperation();"  # Operation for conditions
         else
           opCases.push "        const right = this.parseValue();"  # Use Value for other ops
         opCases.push "        const [$$1, $$2, $$3] = [left, '#{op}', right];"
@@ -1842,7 +1850,16 @@ class Generator
           funcExist = true;
         } else if (this.la.kind === 'ES6_OPTIONAL_CALL') {
           this._match('ES6_OPTIONAL_CALL');
-          const args = this.parseArguments();
+          // After ES6_OPTIONAL_CALL (?.), there's still a CALL_START to match
+          this._match('CALL_START');
+          let args = [];
+          if (this.la.kind !== 'CALL_END') {
+            args = this.parseArgList();
+            if (this.la.kind === ',') {
+              this._match(',');  // Optional trailing comma
+            }
+          }
+          this._match('CALL_END');
           base = ["optcall", base, ...args];
           continue;
         }
@@ -2187,6 +2204,11 @@ class Generator
       if (this.la.kind === ']') {
         break;
       }
+      // Check for elision (another comma means a hole)
+      if (this.la.kind === ',') {
+        list.push(null);
+        continue;
+      }
       // Parse next element
       const elem = this.parseExpression();
       list.push(elem);
@@ -2479,6 +2501,44 @@ class Generator
 
     // No expression - just return
     return ["return"];
+  }
+'''
+
+  # Special handling for Yield (4 rules)
+  _generateYieldSpecial: (rules) ->
+    # Yield has 4 rules:
+    # 1. YIELD → ["yield"]
+    # 2. YIELD Expression → ["yield", 2]
+    # 3. YIELD INDENT Object OUTDENT → ["yield", 3]
+    # 4. YIELD FROM Expression → ["yield-from", 3]
+    '''
+  parseYield() {
+    this._match('YIELD');
+
+    // Check for FROM (yield from)
+    if (this.la.kind === 'FROM') {
+      this._match('FROM');
+      const expr = this.parseExpression();
+      return ["yield-from", expr];
+    }
+
+    // Check for indented object
+    if (this.la.kind === 'INDENT') {
+      this._match('INDENT');
+      const obj = this.parseObject();
+      this._match('OUTDENT');
+      return ["yield", obj];
+    }
+
+    // Check if there's an expression
+    if (this.la.kind !== 'TERMINATOR' && this.la.kind !== 'OUTDENT' &&
+        this.la.kind !== '$end' && this.la.kind !== null) {
+      const expr = this.parseExpression();
+      return ["yield", expr];
+    }
+
+    // No expression - just yield
+    return ["yield"];
   }
 '''
 

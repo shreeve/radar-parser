@@ -369,21 +369,32 @@ switch (this.la.kind) {    case 'PARAM_START':
 }
 
 parseYield() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseYield(). Possible grammar cycle.");
-}
-try {
-switch (this.la.kind) {    case 'YIELD':
-      {
-      const $$1 = this._match('YIELD');
-      return ["yield"];
-      }default:      this._error(['YIELD'], "Invalid Yield");  }
-  } finally {
-    this.depth--;
+  this._match('YIELD');
+
+  // Check for FROM (yield from)
+  if (this.la.kind === 'FROM') {
+    this._match('FROM');
+    const expr = this.parseExpression();
+    return ["yield-from", expr];
   }
+
+  // Check for indented object
+  if (this.la.kind === 'INDENT') {
+    this._match('INDENT');
+    const obj = this.parseObject();
+    this._match('OUTDENT');
+    return ["yield", obj];
+  }
+
+  // Check if there's an expression
+  if (this.la.kind !== 'TERMINATOR' && this.la.kind !== 'OUTDENT' &&
+      this.la.kind !== '$end' && this.la.kind !== null) {
+    const expr = this.parseExpression();
+    return ["yield", expr];
+  }
+
+  // No expression - just yield
+  return ["yield"];
 }
 
 parseBlock() {
@@ -880,7 +891,7 @@ switch (this.la.kind) {    case 'IDENTIFIER':
 
 parseReturn() {
   this._match('RETURN');
-  
+
   // Check for indented object
   if (this.la.kind === 'INDENT') {
     this._match('INDENT');
@@ -888,15 +899,15 @@ parseReturn() {
     this._match('OUTDENT');
     return ["return", obj];
   }
-  
+
   // Check if there's an expression (must check if we can start an Expression)
   // Don't consume TERMINATOR, OUTDENT, or end markers
-  if (this.la.kind !== 'TERMINATOR' && this.la.kind !== 'OUTDENT' && 
+  if (this.la.kind !== 'TERMINATOR' && this.la.kind !== 'OUTDENT' &&
       this.la.kind !== '$end' && this.la.kind !== null) {
     const expr = this.parseExpression();
     return ["return", expr];
   }
-  
+
   // No expression - just return
   return ["return"];
 }
@@ -1095,7 +1106,7 @@ parseParam() {
   // Check for ... (rest or expansion)
   if (this.la.kind === '...') {
     this._match('...');
-    
+
     // Check if there's a ParamVar after (rest param) or just expansion
     if (this.la.kind === 'IDENTIFIER' || this.la.kind === '@' || this.la.kind === '[' || this.la.kind === '{') {
       const paramVar = this.parseParamVar();
@@ -1104,17 +1115,17 @@ parseParam() {
       return ["expansion"];
     }
   }
-  
+
   // Otherwise parse ParamVar
   const paramVar = this.parseParamVar();
-  
+
   // Check for default value
   if (this.la.kind === '=') {
     this._match('=');
     const defaultExpr = this.parseExpression();
     return ["default", paramVar, defaultExpr];
   }
-  
+
   return paramVar;
 }
 
@@ -1340,7 +1351,16 @@ parseValue() {
         funcExist = true;
       } else if (this.la.kind === 'ES6_OPTIONAL_CALL') {
         this._match('ES6_OPTIONAL_CALL');
-        const args = this.parseArguments();
+        // After ES6_OPTIONAL_CALL (?.), there's still a CALL_START to match
+        this._match('CALL_START');
+        let args = [];
+        if (this.la.kind !== 'CALL_END') {
+          args = this.parseArgList();
+          if (this.la.kind === ',') {
+            this._match(',');  // Optional trailing comma
+          }
+        }
+        this._match('CALL_END');
         base = ["optcall", base, ...args];
         continue;
       }
@@ -1577,26 +1597,26 @@ switch (this.la.kind) {    case ',':
 
 parseClass() {
   this._match('CLASS');
-  
+
   // Check for optional name (SimpleAssignable)
   let name = null;
   if (this.la.kind === 'IDENTIFIER' || this.la.kind === '@') {
     name = this.parseSimpleAssignable();
   }
-  
+
   // Check for optional EXTENDS
   let superclass = null;
   if (this.la.kind === 'EXTENDS') {
     this._match('EXTENDS');
     superclass = this.parseExpression();
   }
-  
+
   // Check for optional Block
   let body = null;
   if (this.la.kind === 'INDENT') {
     body = this.parseBlock();
   }
-  
+
   // Build result based on what we have
   if (body) {
     return ["class", name, superclass, body];
@@ -2150,6 +2170,11 @@ parseArray() {
     if (this.la.kind === ']') {
       break;
     }
+    // Check for elision (another comma means a hole)
+    if (this.la.kind === ',') {
+      list.push(null);
+      continue;
+    }
     // Parse next element
     const elem = this.parseExpression();
     list.push(elem);
@@ -2204,7 +2229,7 @@ parseSlice() {
   // Check if it starts with RangeDots
   if (this.la.kind === '..' || this.la.kind === '...') {
     const dots = this.parseRangeDots();
-    
+
     // Check if there's an expression after
     // Must check if we can start an Expression (not at INDEX_END, OUTDENT, etc.)
     if (this.la.kind !== 'INDEX_END' && this.la.kind !== 'OUTDENT') {
@@ -2221,7 +2246,7 @@ parseSlice() {
   // Check for RangeDots after expression
   if (this.la.kind === '..' || this.la.kind === '...') {
     const dots = this.parseRangeDots();
-    
+
     // Check if there's an expression after
     if (this.la.kind !== 'INDEX_END' && this.la.kind !== 'OUTDENT') {
       const endExpr = this.parseExpression();
@@ -3636,14 +3661,14 @@ while (true) {
       }
       case 'POST_IF': {
         this._match('POST_IF');
-        const right = this.parseValue();
+        const right = this.parseOperation();
         const [$$1, $$2, $$3] = [left, 'POST_IF', right];
         left = ["if", right, [left]];
         break;
       }
       case 'POST_UNLESS': {
         this._match('POST_UNLESS');
-        const right = this.parseValue();
+        const right = this.parseOperation();
         const [$$1, $$2, $$3] = [left, 'POST_UNLESS', right];
         left = ["unless", right, [left]];
         break;
