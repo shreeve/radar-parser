@@ -880,6 +880,8 @@ class Generator
         func = @_generateYieldSpecial(rules)
       else if typeName is 'Try'
         func = @_generateTrySpecial(rules)
+      else if typeName is 'Catch'
+        func = @_generateCatchSpecial(rules)
       else if typeName is 'ForVariables'
         func = @_generateForVariablesSpecial(rules)
       else if typeName is 'Switch'
@@ -2927,6 +2929,35 @@ class Generator
       return ["try", tryBlock, catchClause];
     } else {
       return ["try", tryBlock];
+    }
+  }
+'''
+
+  # Special handling for Catch (3 variants: with identifier, with object, or no param)
+  _generateCatchSpecial: (rules) ->
+    # Catch has 3 rules:
+    # 1. CATCH Identifier Block → [2, 3]
+    # 2. CATCH Object Block → [2, 3]
+    # 3. CATCH Block → [null, 2]
+    '''
+  parseCatch() {
+    this._match('CATCH');
+    
+    // Lookahead to determine which variant
+    if (this.la.kind === 'INDENT') {
+      // CATCH Block (no parameter)
+      const block = this.parseBlock();
+      return [null, block];
+    } else if (this.la.kind === '{') {
+      // CATCH Object Block (object destructuring)
+      const pattern = this.parseObject();
+      const block = this.parseBlock();
+      return [pattern, block];
+    } else {
+      // CATCH Identifier Block (simple parameter)
+      const param = this.parseIdentifier();
+      const block = this.parseBlock();
+      return [param, block];
     }
   }
 '''

@@ -3068,12 +3068,24 @@ if (this.depth > this.maxDepth) {
   this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseCatch(). Possible grammar cycle.");
 }
 try {
-switch (this.la.kind) {    case 'CATCH':
-      {
-      const $$1 = this._match('CATCH');
-      const $$2 = this.parseBlock();
-      return [null, $$2];
-      }default:      this._error(['CATCH'], "Invalid Catch");  }
+  this._match('CATCH');
+  
+  // Lookahead to determine which variant
+  if (this.la.kind === 'INDENT') {
+    // CATCH Block (no parameter)
+    const block = this.parseBlock();
+    return [null, block];
+  } else if (this.la.kind === '{') {
+    // CATCH Object Block (object destructuring)
+    const pattern = this.parseObject();
+    const block = this.parseBlock();
+    return [pattern, block];
+  } else {
+    // CATCH Identifier Block (simple parameter)
+    const param = this.parseIdentifier();
+    const block = this.parseBlock();
+    return [param, block];
+  }
   } finally {
     this.depth--;
   }
