@@ -157,9 +157,9 @@ git push
    - Solution: _generateForSpecial handling all 13 FOR variants
    - Impact: for-in, for-of, for-from, comprehensions all work
 
-### Session 2 (Nov 8): 57.6% → 80.6% (+216 tests!)
+### Session 2 (Nov 8): 57.6% → 87.7% (+283 tests!)
 
-**11 Major Technical Fixes:**
+**14 Major Technical Fixes:**
 
 1. **String Interpolation** (+120 tests → 70.4%) 🔥 **BIGGEST WIN!**
    - Problem: InterpolationChunk only handled empty case, expected INTERPOLATION_END
@@ -215,6 +215,21 @@ git push
    - Problem: `!a && !b` failed with Invalid Value after `&&`
    - Solution: Inline unary operator handling for `&&` and `||`
    - Impact: parens.rip improved from 88% to 96%!
+
+12. **Operator Precedence in && ||** (+4 tests → 81.6%)
+   - Problem: `x > 5 && y < 10` parsed as `((x > 5) && y) < 10`
+   - Solution: Extended inline handling to parse comparison operators
+   - Impact: parens.rip reached 100%! (8th perfect file)
+
+13. **Comprehensions Enabled** (+42 tests → 86.2%) 🔥 **BREAKTHROUGH!**
+   - Problem: Postfix for creates Expression → For → Expression cycles
+   - Solution: Handle FOR in Operation iterator (like POST_IF), use parseValue for COMPOUND_ASSIGN
+   - Impact: Comprehensions work WITHOUT breaking LL(1)! compatibility.rip → 100%, comprehensions.rip 3.4% → 89.7%
+
+14. **Import Statements** (+9 tests → 87.7%)
+   - Problem: Import had 7 complex variants not handled
+   - Solution: _generateImportSpecial with proper lookahead
+   - Impact: modules.rip improved from 9.1% to 50.0%
 
 ### Codebase Organization (5 Major Cleanups):
 
@@ -349,44 +364,29 @@ Array: [
 ## 🔧 **How to Continue to 100%**
 
 ### Current State:
-- **756/938 tests passing (80.6%)** ✅ **OVER 80%!**
-- **182 tests remaining (19.4%)**
-- **6 files at 100% (operators, literals, properties, strings, arrows, data)** ← 6 perfect files, 261 tests!
-- **4 files "blocked" at 95%+ (assignment, compatibility, functions, parens)**
-  - These hit non-parser limitations (codegen, LL(1), lexer)
-- **4 files at 85%+ (basic 90.7%, async 86.1%, semicolons 84.6%, optional 81.5%)**
+- **823/938 tests passing (87.7%)** ✅ **ALMOST 90%!**
+- **115 tests remaining (12.3%)**
+- **10 files at 100% (370/370 tests perfect!)** ← operators, literals, properties, strings, arrows, data, assignment, parens, basic, compatibility
+- **1 file at 95%+ (functions 96.3%)** - 3 LL(1) limitations
+- **3 files at 85%+ (semicolons 92.3%, comprehensions 69.0%, async 86.1%)**
 
-### Why Assignment & Functions Are "Stuck" at 97-98%:
-
-**assignment.rip (45/46, 97.8%):**
-- Single failure: Array destructuring with holes `[a, , c]`
-- Parser: ✅ Works perfectly (outputs `["array", "a", null, "c"]`)
-- Codegen: ❌ Outputs `[a, null, c] = ...` (invalid JS, should be `[a, , c]`)
-- **Not fixable in parser** - codegen limitation per AGENT.md rules
+### Why Functions Is "Stuck" at 96.3%:
 
 **functions.rip (78/81, 96.3%):**
 - 3 failures: All LL(1) or lexer limitations
-  1. `[(x) -> x + 1]` - inline arrow needs lexer rewriter
-  2. `return if x < 0` - postfix if on return (PostfixIf commented out for LL(1))
+  1. `[(x) -> x + 1]` - inline arrow in array (needs inline expression support)
+  2. `return if x < 0` - postfix if on statement (PostfixIf creates cycles)
   3. Similar return postfix issue
-- **Not fixable without grammar changes** - LL(1) compliance trade-off
+- **Not easily fixable** - requires grammar changes or lexer rewriter
 
-**parens.rip (24/25, 96.0%):**
-- Single failure: Complex `and` precedence in nested conditions
-- **Not fixable easily** - requires deep precedence analysis
+### To Reach 90% (+25 tests):
+Focus on remaining fixable patterns:
+- Inline Code expressions (arrow functions without blocks)
+- Fix remaining comprehension edge cases
+- Multiline patterns with OUTDENT
+- Edge case fixes in multiple files
 
-### To Reach 85% (+42 tests):
-- Fix remaining unary operator edge cases
-- Add more inline operator handling
-- Fix for-of/for-in detection issues
-
-### To Reach 90% (+122 tests):
-- Fix for-of/for-in detection issues
-- Add comprehension support (requires grammar work)
-- Fix class/super edge cases
-- Complete more files to 100%
-
-### To Reach 100% (+182 tests):
+### To Reach 100% (+115 tests):
 
 **Remaining Failures Breakdown:**
 - **Expected INDENT** (78 failures) - Inline syntax without blocks

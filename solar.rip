@@ -2791,28 +2791,28 @@ class Generator
     '''
   parseSwitch() {
     this._match('SWITCH');
-    
+
     // Lookahead: if INDENT, no discriminant; otherwise parse Expression
     let discriminant = null;
     if (this.la.kind !== 'INDENT') {
       discriminant = this.parseExpression();
     }
-    
+
     // Now expect INDENT
     this._match('INDENT');
-    
+
     // Parse when clauses
     const whens = this.parseWhens();
-    
+
     // Check for ELSE
     let elseBlock = null;
     if (this.la.kind === 'ELSE') {
       this._match('ELSE');
       elseBlock = this.parseBlock();
     }
-    
+
     this._match('OUTDENT');
-    
+
     return ["switch", discriminant, whens, elseBlock];
   }
 '''
@@ -2823,14 +2823,14 @@ class Generator
     '''
   parseImport() {
     this._match('IMPORT');
-    
+
     // Lookahead to determine import type
     if (this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
       // IMPORT String → side-effect import
       const str = this.parseString();
       return ["import", "{}", str];
     }
-    
+
     if (this.la.kind === '{') {
       // IMPORT { ... } FROM String
       this._match('{');
@@ -2852,7 +2852,7 @@ class Generator
         return ["import", specifiers, str];
       }
     }
-    
+
     // Must be ImportDefaultSpecifier or ImportNamespaceSpecifier
     if (this.la.kind === 'IMPORT_ALL') {
       // IMPORT ImportNamespaceSpecifier FROM String
@@ -2861,10 +2861,10 @@ class Generator
       const str = this.parseString();
       return ["import", ns, str];
     }
-    
+
     // ImportDefaultSpecifier (Identifier)
     const defaultSpec = this.parseImportDefaultSpecifier();
-    
+
     // Check what comes next
     if (this.la.kind === 'FROM') {
       // Simple: IMPORT ImportDefaultSpecifier FROM String
@@ -2872,10 +2872,10 @@ class Generator
       const str = this.parseString();
       return ["import", defaultSpec, str];
     }
-    
+
     if (this.la.kind === ',') {
       this._match(',');
-      
+
       if (this.la.kind === 'IMPORT_ALL') {
         // IMPORT ImportDefaultSpecifier , ImportNamespaceSpecifier FROM String
         const ns = this.parseImportNamespaceSpecifier();
@@ -2883,7 +2883,7 @@ class Generator
         const str = this.parseString();
         return ["import", [defaultSpec, ns], str];
       }
-      
+
       if (this.la.kind === '{') {
         // IMPORT ImportDefaultSpecifier , { ImportSpecifierList OptComma } FROM String
         this._match('{');
@@ -2897,7 +2897,7 @@ class Generator
         return ["import", [defaultSpec, specifiers], str];
       }
     }
-    
+
     this._error(['STRING', 'STRING_START', '{', 'IMPORT_ALL', 'FROM'], "Invalid Import");
   }
 '''
