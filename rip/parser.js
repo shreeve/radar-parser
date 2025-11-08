@@ -1467,11 +1467,11 @@ parseValue() {
     } else if (this.la.kind === 'INDEX_START') {
       // Array indexing, slicing, or regex indexing: value[index] or value[start..end] or value[/regex/, capture]
       this._match('INDEX_START');
-      
+
       // Check for regex indexing: value[/pattern/] or value[/pattern/, n]
       if (this.la.kind === 'REGEX' || this.la.kind === 'REGEX_START') {
         const regex = this.parseRegex();
-        
+
         // Check for capture group number: [/pattern/, 1]
         if (this.la.kind === ',') {
           this._match(',');
@@ -2016,180 +2016,41 @@ if (this.depth > this.maxDepth) {
   this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseInvocation(). Possible grammar cycle.");
 }
 try {
-switch (this.la.kind) {    case 'IDENTIFIER':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case '@':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case '[':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case '{':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case 'NUMBER':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case 'JS':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case 'REGEX':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case 'REGEX_START':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case 'UNDEFINED':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case 'NULL':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case 'BOOL':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case 'INFINITY':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case 'NAN':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case '(':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case 'SUPER':
-      {
-      const $$1 = this._match('SUPER');
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseArguments();
-      return $$2 ? ["?super", ...$$3] : ["super", ...$$3];
-      }
-    case 'DYNAMIC_IMPORT':
-      {
-      const $$1 = this._match('DYNAMIC_IMPORT');
-      const $$2 = this.parseArguments();
-      return ["import", ...$$2];
-      }
-    case 'DO_IIFE':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case 'THIS':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case 'NEW_TARGET':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case 'IMPORT_META':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case 'PARAM_START':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case '->':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case '=>':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case 'STRING':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }
-    case 'STRING_START':
-      {
-      const $$1 = this.parseAssignable();
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseString();
-      return ["tagged-template", $$1, $$3];
-      }default:      this._error(['IDENTIFIER', '@', '[', '{', 'NUMBER', 'JS', 'REGEX', 'REGEX_START', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', 'PARAM_START', '->', '=>', 'STRING', 'STRING_START'], "Invalid Invocation");  }
+  // Check for special starting tokens
+  if (this.la.kind === 'SUPER') {
+    // SUPER OptFuncExist Arguments
+    this._match('SUPER');
+    const funcExist = this.parseOptFuncExist();
+    const args = this.parseArguments();
+    return funcExist ? ["?super", ...args] : ["super", ...args];
+  } else if (this.la.kind === 'DYNAMIC_IMPORT') {
+    // DYNAMIC_IMPORT Arguments
+    this._match('DYNAMIC_IMPORT');
+    const args = this.parseArguments();
+    return ["import", ...args];
+  } else {
+    // Assignable OptFuncExist (String | Arguments | ES6_OPTIONAL_CALL Arguments)
+    const assignable = this.parseAssignable();
+    
+    // Check for ES6_OPTIONAL_CALL
+    if (this.la.kind === 'ES6_OPTIONAL_CALL') {
+      this._match('ES6_OPTIONAL_CALL');
+      const args = this.parseArguments();
+      return ["optcall", assignable, ...args];
+    }
+    
+    const funcExist = this.parseOptFuncExist();
+    
+    // Lookahead: String (tagged template) or Arguments (call)
+    if (this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
+      const str = this.parseString();
+      return ["tagged-template", assignable, str];
+    } else {
+      // Must be Arguments (CALL_START)
+      const args = this.parseArguments();
+      return funcExist ? ["?call", assignable, ...args] : [assignable, ...args];
+    }
+  }
   } finally {
     this.depth--;
   }
@@ -2222,12 +2083,24 @@ if (this.depth > this.maxDepth) {
   this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseArguments(). Possible grammar cycle.");
 }
 try {
-switch (this.la.kind) {    case 'CALL_START':
-      {
-      const $$1 = this._match('CALL_START');
-      const $$2 = this._match('CALL_END');
-      return [];
-      }default:      this._error(['CALL_START'], "Invalid Arguments");  }
+  this._match('CALL_START');
+  
+  // Check if arguments are empty
+  if (this.la.kind === 'CALL_END') {
+    this._match('CALL_END');
+    return [];
+  }
+  
+  // Parse argument list
+  const args = this.parseArgList();
+  
+  // Optional trailing comma
+  if (this.la.kind === ',') {
+    this._match(',');
+  }
+  
+  this._match('CALL_END');
+  return args;
   } finally {
     this.depth--;
   }

@@ -883,6 +883,10 @@ class Generator
         func = @_generateSwitchSpecial(rules)
       else if typeName is 'When'
         func = @_generateWhenSpecial(rules)
+      else if typeName is 'Invocation'
+        func = @_generateInvocationSpecial(rules)
+      else if typeName is 'Arguments'
+        func = @_generateArgumentsSpecial(rules)
       else if typeName is 'Import'
         func = @_generateImportSpecial(rules)
       else if typeName.endsWith('Tail') and rules.length is 3
@@ -2062,11 +2066,11 @@ class Generator
       } else if (this.la.kind === 'INDEX_START') {
         // Array indexing, slicing, or regex indexing: value[index] or value[start..end] or value[/regex/, capture]
         this._match('INDEX_START');
-        
+
         // Check for regex indexing: value[/pattern/] or value[/pattern/, n]
         if (this.la.kind === 'REGEX' || this.la.kind === 'REGEX_START') {
           const regex = this.parseRegex();
-          
+
           // Check for capture group number: [/pattern/, 1]
           if (this.la.kind === ',') {
             this._match(',');
@@ -2935,6 +2939,82 @@ class Generator
     }
 
     return ["when", args, block];
+  }
+'''
+
+  # Special handling for Invocation (tagged template vs regular call)
+  _generateInvocationSpecial: (rules) ->
+    # Invocation has 5 rules with common prefix patterns:
+    # 1. Assignable OptFuncExist String → ["tagged-template", 1, 3]
+    # 2. Assignable OptFuncExist Arguments → soak ? ["?call", 1, ...3] : [1, ...3]
+    # 3. Assignable ES6_OPTIONAL_CALL Arguments → ["optcall", 1, ...3]
+    # 4. SUPER OptFuncExist Arguments → soak ? ["?super", ...3] : ["super", ...3]
+    # 5. DYNAMIC_IMPORT Arguments → ["import", ...2]
+    '''
+  parseInvocation() {
+    // Check for special starting tokens
+    if (this.la.kind === 'SUPER') {
+      // SUPER OptFuncExist Arguments
+      this._match('SUPER');
+      const funcExist = this.parseOptFuncExist();
+      const args = this.parseArguments();
+      return funcExist ? ["?super", ...args] : ["super", ...args];
+    } else if (this.la.kind === 'DYNAMIC_IMPORT') {
+      // DYNAMIC_IMPORT Arguments
+      this._match('DYNAMIC_IMPORT');
+      const args = this.parseArguments();
+      return ["import", ...args];
+    } else {
+      // Assignable OptFuncExist (String | Arguments | ES6_OPTIONAL_CALL Arguments)
+      const assignable = this.parseAssignable();
+      
+      // Check for ES6_OPTIONAL_CALL
+      if (this.la.kind === 'ES6_OPTIONAL_CALL') {
+        this._match('ES6_OPTIONAL_CALL');
+        const args = this.parseArguments();
+        return ["optcall", assignable, ...args];
+      }
+      
+      const funcExist = this.parseOptFuncExist();
+      
+      // Lookahead: String (tagged template) or Arguments (call)
+      if (this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
+        const str = this.parseString();
+        return ["tagged-template", assignable, str];
+      } else {
+        // Must be Arguments (CALL_START)
+        const args = this.parseArguments();
+        return funcExist ? ["?call", assignable, ...args] : [assignable, ...args];
+      }
+    }
+  }
+'''
+
+  # Special handling for Arguments (empty vs with arg list)
+  _generateArgumentsSpecial: (rules) ->
+    # Arguments has 2 rules:
+    # 1. CALL_START CALL_END → []
+    # 2. CALL_START ArgList OptComma CALL_END → 2
+    '''
+  parseArguments() {
+    this._match('CALL_START');
+    
+    // Check if arguments are empty
+    if (this.la.kind === 'CALL_END') {
+      this._match('CALL_END');
+      return [];
+    }
+    
+    // Parse argument list
+    const args = this.parseArgList();
+    
+    // Optional trailing comma
+    if (this.la.kind === ',') {
+      this._match(',');
+    }
+    
+    this._match('CALL_END');
+    return args;
   }
 '''
 
