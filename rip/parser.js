@@ -3464,7 +3464,7 @@ try {
   this._match('UNLESS');
   const condition = this.parseOperation();
   const thenBlock = this.parseBlock();
-  
+
   // Check for ELSE
   if (this.la.kind === 'ELSE') {
     this._match('ELSE');
@@ -3472,7 +3472,7 @@ try {
     // unless with else = if not
     return ["if", ["!", condition], thenBlock, elseBlock];
   }
-  
+
   // No else - just unless
   return ["unless", condition, thenBlock];
   } finally {
@@ -4009,7 +4009,7 @@ while (true) {
       }
       case 'COMPOUND_ASSIGN': {
         const op = this._match('COMPOUND_ASSIGN');
-        const right = this.parseValue();
+        const right = this.parseExpression();
         const [$$1, $$2, $$3] = [left, op, right];
         left = [op, left, right];
         break;
