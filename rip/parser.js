@@ -3453,14 +3453,10 @@ if (this.depth > this.maxDepth) {
   this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseIfBlock(). Possible grammar cycle.");
 }
 try {
-switch (this.la.kind) {    case 'IF':
-      {
-      const $$1 = this._match('IF');
+    const $$1 = this._match('IF');
       const $$2 = this.parseOperation();
       const $$3 = this.parseBlock();
-      return ["if", $$2, $$3];
-      }default:      this._error(['IF'], "Invalid IfBlock");  }
-  } finally {
+      return ["if", $$2, $$3];  } finally {
     this.depth--;
   }
 }
@@ -3506,12 +3502,26 @@ parseIf() {
   // Check for ELSE continuation
   if (this.la.kind === 'ELSE') {
     this._match('ELSE');
-    const elseBlock = this.parseBlock();
-    // Append else block to if: result.length === 3 ? ["if", result[1], result[2], elseBlock] : [...result, elseBlock]
-    if (result.length === 3) {
-      return ["if", result[1], result[2], elseBlock];
+    
+    // Lookahead: Is it ELSE If (else-if) or ELSE Block (final else)?
+    if (this.la.kind === 'IF' || this.la.kind === 'UNLESS') {
+      // ELSE If - right-recursive else-if chain!
+      const elseIf = this.parseIf();  // Recursive call
+      // Append else-if to result
+      if (result.length === 3) {
+        return ["if", result[1], result[2], elseIf];
+      } else {
+        return [...result, elseIf];
+      }
     } else {
-      return [...result, elseBlock];
+      // ELSE Block - final else
+      const elseBlock = this.parseBlock();
+      // Append else block to if
+      if (result.length === 3) {
+        return ["if", result[1], result[2], elseBlock];
+      } else {
+        return [...result, elseBlock];
+      }
     }
   }
 
