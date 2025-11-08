@@ -1860,16 +1860,33 @@ if (this.depth > this.maxDepth) {
   this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseImportSpecifier(). Possible grammar cycle.");
 }
 try {
-switch (this.la.kind) {    case 'IDENTIFIER':
-      {
-      const $$1 = this.parseIdentifier();
-      return $$1;
-      }
-    case 'DEFAULT':
-      {
-      const $$1 = this._match('DEFAULT');
-      return $$1;
-      }default:      this._error(['IDENTIFIER', 'DEFAULT'], "Invalid ImportSpecifier");  }
+  if (this.la.kind === 'IDENTIFIER') {
+    const id = this.parseIdentifier();
+    
+    // Check for AS (alias)
+    if (this.la.kind === 'AS') {
+      this._match('AS');
+      const alias = this.parseIdentifier();
+      return [id, alias];
+    }
+    
+    // No alias - just return identifier
+    return id;
+  } else if (this.la.kind === 'DEFAULT') {
+    const def = this._match('DEFAULT');
+    
+    // Check for AS (alias)
+    if (this.la.kind === 'AS') {
+      this._match('AS');
+      const alias = this.parseIdentifier();
+      return [def, alias];
+    }
+    
+    // No alias - just return DEFAULT
+    return def;
+  }
+  
+  this._error(['IDENTIFIER', 'DEFAULT'], "Invalid ImportSpecifier");
   } finally {
     this.depth--;
   }
@@ -2078,16 +2095,41 @@ if (this.depth > this.maxDepth) {
   this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseExportSpecifier(). Possible grammar cycle.");
 }
 try {
-switch (this.la.kind) {    case 'IDENTIFIER':
-      {
-      const $$1 = this.parseIdentifier();
-      return $$1;
+  if (this.la.kind === 'IDENTIFIER') {
+    const id = this.parseIdentifier();
+    
+    // Check for AS (alias)
+    if (this.la.kind === 'AS') {
+      this._match('AS');
+      
+      if (this.la.kind === 'DEFAULT') {
+        // Identifier AS DEFAULT (export as default)
+        const def = this._match('DEFAULT');
+        return [id, def];
+      } else {
+        // Identifier AS Identifier (regular alias)
+        const alias = this.parseIdentifier();
+        return [id, alias];
       }
-    case 'DEFAULT':
-      {
-      const $$1 = this._match('DEFAULT');
-      return $$1;
-      }default:      this._error(['IDENTIFIER', 'DEFAULT'], "Invalid ExportSpecifier");  }
+    }
+    
+    // No alias - just return identifier
+    return id;
+  } else if (this.la.kind === 'DEFAULT') {
+    const def = this._match('DEFAULT');
+    
+    // Check for AS (alias)
+    if (this.la.kind === 'AS') {
+      this._match('AS');
+      const alias = this.parseIdentifier();
+      return [def, alias];
+    }
+    
+    // No alias - just return DEFAULT
+    return def;
+  }
+  
+  this._error(['IDENTIFIER', 'DEFAULT'], "Invalid ExportSpecifier");
   } finally {
     this.depth--;
   }
