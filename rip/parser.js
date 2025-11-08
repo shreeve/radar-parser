@@ -3224,10 +3224,9 @@ parseFor() {
     }
 
     // Check what comes next: ForVariables or Range
-    // Note: Range loops (FOR [1..10]) are only valid without AWAIT/OWN
+    // Note: Range loops (FOR [1..10]) only valid without AWAIT/OWN
     if (this.la.kind === '[' && !hasAwait && !hasOwn) {
       // FOR Range Block (simple range-based loop)
-      // Limitation: This means FOR [a, b] IN won't parse (use FOR AWAIT [a, b] FROM)
       const range = this.parseRange();
 
       // Optional BY
@@ -3307,26 +3306,17 @@ if (this.depth > this.maxDepth) {
   this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseForValue(). Possible grammar cycle.");
 }
 try {
-switch (this.la.kind) {    case 'IDENTIFIER':
-      {
-      const $$1 = this.parseForVar();
-      return $$1;
-      }
-    case '@':
-      {
-      const $$1 = this.parseForVar();
-      return $$1;
-      }
-    case '[':
-      {
-      const $$1 = this.parseForVar();
-      return $$1;
-      }
-    case '{':
-      {
-      const $$1 = this.parseForVar();
-      return $$1;
-      }default:      this._error(['IDENTIFIER', '@', '[', '{'], "Invalid ForValue");  }
+  const forVar = this.parseForVar();
+  
+  // Check for default value
+  if (this.la.kind === '=') {
+    this._match('=');
+    const defaultExpr = this.parseExpression();
+    return ["default", forVar, defaultExpr];
+  }
+  
+  // No default - just return the variable
+  return forVar;
   } finally {
     this.depth--;
   }
@@ -3502,7 +3492,7 @@ parseIf() {
   // Check for ELSE continuation
   if (this.la.kind === 'ELSE') {
     this._match('ELSE');
-    
+
     // Lookahead: Is it ELSE If (else-if) or ELSE Block (final else)?
     if (this.la.kind === 'IF' || this.la.kind === 'UNLESS') {
       // ELSE If - right-recursive else-if chain!

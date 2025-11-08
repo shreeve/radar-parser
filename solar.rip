@@ -884,6 +884,8 @@ class Generator
         func = @_generateCatchSpecial(rules)
       else if typeName is 'ForVariables'
         func = @_generateForVariablesSpecial(rules)
+      else if typeName is 'ForValue'
+        func = @_generateForValueSpecial(rules)
       else if typeName is 'Switch'
         func = @_generateSwitchSpecial(rules)
       else if typeName is 'When'
@@ -1752,10 +1754,9 @@ class Generator
       }
 
       // Check what comes next: ForVariables or Range
-      // Note: Range loops (FOR [1..10]) are only valid without AWAIT/OWN
+      // Note: Range loops (FOR [1..10]) only valid without AWAIT/OWN
       if (this.la.kind === '[' && !hasAwait && !hasOwn) {
         // FOR Range Block (simple range-based loop)
-        // Limitation: This means FOR [a, b] IN won't parse (use FOR AWAIT [a, b] FROM)
         const range = this.parseRange();
 
         // Optional BY
@@ -2996,6 +2997,27 @@ class Generator
 
     // Just one variable
     return [first];
+  }
+'''
+
+  # Special handling for ForValue (with optional default)
+  _generateForValueSpecial: (rules) ->
+    # ForValue has 2 rules:
+    # 1. ForVar → pass through
+    # 2. ForVar = Expression → ["default", 1, 3]
+    '''
+  parseForValue() {
+    const forVar = this.parseForVar();
+    
+    // Check for default value
+    if (this.la.kind === '=') {
+      this._match('=');
+      const defaultExpr = this.parseExpression();
+      return ["default", forVar, defaultExpr];
+    }
+    
+    // No default - just return the variable
+    return forVar;
   }
 '''
 
