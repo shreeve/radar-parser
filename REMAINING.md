@@ -60,7 +60,7 @@ else 'other'
 
 **Token stream:**
 ```
-IF x COMPARE 1 INDENT 'one' OUTDENT 
+IF x COMPARE 1 INDENT 'one' OUTDENT
 ELSE IF x COMPARE 2 INDENT 'two' OUTDENT
 ELSE INDENT 'other' OUTDENT
 ```
@@ -76,7 +76,7 @@ ELSE INDENT 'other' OUTDENT
    - Pattern: `if x then 1 else if y then 2 else 'other'`
 
 2. **test/rip/stabilization.rip** - `if-else-if chain 4 branches`
-   - Error: Expected INDENT at line 4, column 7  
+   - Error: Expected INDENT at line 4, column 7
    - Pattern: 4-level if-else-if chain
 
 3. **test/rip/stabilization.rip** - `if-else-if chain 5 branches`
@@ -258,7 +258,7 @@ FOR [ IDENTIFIER , IDENTIFIER = ...
 ```
 
 **Parser sees:** `FOR [` and must decide:
-- Is it `FOR [1..10]` (Range)? 
+- Is it `FOR [1..10]` (Range)?
 - Is it `FOR [a, b]` (Array destructuring)?
 
 **Current logic:**
@@ -337,7 +337,7 @@ While: [
 
 **Workaround:** Use prefix form: `while i < 5\n  i += 1`
 
-**Tests:** 
+**Tests:**
 - `test/rip/loops.rip` - `postfix while`
 - `test/rip/loops.rip` - `postfix until`
 
@@ -616,19 +616,19 @@ if (node[0] === '?super') {
 
 ### Without Architecture Changes
 
-**Current:** 922/938 (98.3%)  
-**Maximum:** 926/938 (98.7%) with codegen fixes  
+**Current:** 922/938 (98.3%)
+**Maximum:** 926/938 (98.7%) with codegen fixes
 **Remaining:** 12 unfixable (LL(1) limitations)
 
 ---
 
 ### With Codegen Changes Only
 
-**Target:** 926/938 (98.7%)  
-**Changes:** rip/codegen.js modifications  
-**Fixes:** Switch without discriminant (3) + soak super (1)  
-**Time:** 2-4 hours  
-**Risk:** Low - well-understood, isolated changes  
+**Target:** 926/938 (98.7%)
+**Changes:** rip/codegen.js modifications
+**Fixes:** Switch without discriminant (3) + soak super (1)
+**Time:** 2-4 hours
+**Risk:** Low - well-understood, isolated changes
 **Architecture impact:** Breaks "codegen.js UNMODIFIED" principle
 
 ---
@@ -663,7 +663,7 @@ if (node[0] === '?super') {
 
 **Value proposition:**
 - 98.3% with pristine architecture
-- vs 98.7% with codegen modifications  
+- vs 98.7% with codegen modifications
 - vs ~97% with grammar restructuring attempts (likely regressions)
 
 **The clean architecture is more valuable than 1.7% more coverage.**
@@ -719,7 +719,7 @@ cp rip/codegen.js rip/codegen.js.backup
 
 **Step 3: Fix soak super**
 - Locate super call generation
-- Add `?super` operator handling  
+- Add `?super` operator handling
 - Generate optional chaining syntax
 
 **Step 4: Test extensively**
