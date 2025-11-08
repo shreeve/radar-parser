@@ -1506,8 +1506,8 @@ class Generator
 
   # Special handling for Expression (dispatch to correct alternative)
   _generateExpressionSpecial: (rules) ->
-    # Expression is a simple dispatch of 10 alternatives:
-    # If, For, While, Try, Switch, Def, Class, Code, Yield, Operation
+    # Expression is a simple dispatch of 11 alternatives:
+    # If, For, While, Try, Switch, Def, Class, Code, Yield, Throw, Operation
     # Each starts with distinct tokens (except Operation which handles everything else)
     '''
   parseExpression() {
@@ -1535,6 +1535,8 @@ class Generator
         return this.parseCode();
       case 'YIELD':
         return this.parseYield();
+      case 'THROW':
+        return this.parseThrow();
       default:
         return this.parseOperation();
     }

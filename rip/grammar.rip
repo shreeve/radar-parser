@@ -69,6 +69,7 @@ grammar =
     o 'Class'      # Class definitions (CLASS token)
     o 'Code'       # Arrow functions (PARAM_START, ->, =>)
     o 'Yield'      # Generator yield (YIELD token)
+    o 'Throw'      # Throw statements (THROW token)
     o 'Operation'  # Values + operators + assignments (handles everything else)
   ]
 

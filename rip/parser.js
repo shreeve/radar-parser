@@ -63,7 +63,7 @@ _error(expected, msg) {
 
 // Token name lookup
 _tokenName(id) {
-  const names = {"2":"error","7":"TERMINATOR","12":"STATEMENT","26":"DEF","28":"CALL_START","30":"CALL_END","34":"YIELD","35":"INDENT","37":"OUTDENT","38":"FROM","39":"IDENTIFIER","41":"PROPERTY","43":"NUMBER","45":"STRING","46":"STRING_START","48":"STRING_END","51":"INTERPOLATION_START","52":"INTERPOLATION_END","54":"REGEX","55":"REGEX_START","57":"REGEX_END","59":",","61":"JS","62":"UNDEFINED","63":"NULL","64":"BOOL","65":"INFINITY","66":"NAN","69":"=","73":":","76":"[","77":"]","78":"@","79":"...","84":"SUPER","87":"DYNAMIC_IMPORT","88":".","89":"?.","90":"::","91":"?::","92":"INDEX_START","93":"INDEX_END","94":"INDEX_SOAK","95":"RETURN","96":"PARAM_START","97":"PARAM_END","99":"->","100":"=>","110":"ES6_OPTIONAL_INDEX","114":"NEW_TARGET","115":"IMPORT_META","116":"{","117":"FOR","119":"FOROF","120":"}","121":"WHEN","122":"OWN","125":"CLASS","126":"EXTENDS","127":"IMPORT","133":"AS","134":"DEFAULT","135":"IMPORT_ALL","136":"EXPORT","138":"EXPORT_ALL","141":"ES6_OPTIONAL_CALL","142":"FUNC_EXIST","144":"THIS","149":"..","158":"TRY","160":"FINALLY","161":"CATCH","163":"THROW","164":"(","165":")","167":"WHILE","168":"UNTIL","170":"LOOP","171":"FORIN","172":"BY","173":"FORFROM","174":"AWAIT","177":"SWITCH","179":"ELSE","182":"LEADING_WHEN","184":"IF","186":"UNLESS","187":"UNARY","188":"DO","189":"DO_IIFE","190":"UNARY_MATH","191":"-","192":"+","193":"--","194":"++","195":"?","196":"MATH","197":"**","198":"SHIFT","199":"COMPARE","200":"&","201":"^","202":"|","203":"&&","204":"||","205":"??","206":"!?","207":"RELATION","208":"SPACE?","209":"POST_IF","210":"POST_UNLESS","211":"COMPOUND_ASSIGN"};
+  const names = {"2":"error","7":"TERMINATOR","12":"STATEMENT","27":"DEF","29":"CALL_START","31":"CALL_END","35":"YIELD","36":"INDENT","38":"OUTDENT","39":"FROM","40":"IDENTIFIER","42":"PROPERTY","44":"NUMBER","46":"STRING","47":"STRING_START","49":"STRING_END","52":"INTERPOLATION_START","53":"INTERPOLATION_END","55":"REGEX","56":"REGEX_START","58":"REGEX_END","60":",","62":"JS","63":"UNDEFINED","64":"NULL","65":"BOOL","66":"INFINITY","67":"NAN","70":"=","74":":","77":"[","78":"]","79":"@","80":"...","85":"SUPER","88":"DYNAMIC_IMPORT","89":".","90":"?.","91":"::","92":"?::","93":"INDEX_START","94":"INDEX_END","95":"INDEX_SOAK","96":"RETURN","97":"PARAM_START","98":"PARAM_END","100":"->","101":"=>","111":"ES6_OPTIONAL_INDEX","115":"NEW_TARGET","116":"IMPORT_META","117":"{","118":"FOR","120":"FOROF","121":"}","122":"WHEN","123":"OWN","126":"CLASS","127":"EXTENDS","128":"IMPORT","134":"AS","135":"DEFAULT","136":"IMPORT_ALL","137":"EXPORT","139":"EXPORT_ALL","142":"ES6_OPTIONAL_CALL","143":"FUNC_EXIST","145":"THIS","150":"..","159":"TRY","161":"FINALLY","162":"CATCH","163":"THROW","164":"(","165":")","167":"WHILE","168":"UNTIL","170":"LOOP","171":"FORIN","172":"BY","173":"FORFROM","174":"AWAIT","177":"SWITCH","179":"ELSE","182":"LEADING_WHEN","184":"IF","186":"UNLESS","187":"UNARY","188":"DO","189":"DO_IIFE","190":"UNARY_MATH","191":"-","192":"+","193":"--","194":"++","195":"?","196":"MATH","197":"**","198":"SHIFT","199":"COMPARE","200":"&","201":"^","202":"|","203":"&&","204":"||","205":"??","206":"!?","207":"RELATION","208":"SPACE?","209":"POST_IF","210":"POST_UNLESS","211":"COMPOUND_ASSIGN"};
   return names[id] || id;
 }
 
@@ -107,7 +107,7 @@ const $$2 = this.parseBodyTail();
     if (this.la.kind === 'TERMINATOR') {
       this._match('TERMINATOR');
       // Check if next token can start Line
-      if (['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'IDENTIFIER', '@', 'JS', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', '[', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', '{', 'NUMBER', 'STRING', 'STRING_START', 'REGEX', 'REGEX_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', 'RETURN', 'STATEMENT', 'IMPORT', 'EXPORT'].includes(this.la.kind)) {
+      if (['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'THROW', 'IDENTIFIER', '@', 'JS', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', '[', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', '{', 'NUMBER', 'STRING', 'STRING_START', 'REGEX', 'REGEX_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', 'RETURN', 'STATEMENT', 'IMPORT', 'EXPORT'].includes(this.la.kind)) {
         // Rule: TERMINATOR Line BodyTail
         const elem = this.parseLine();
         const tail = this.parseBodyTail();
@@ -159,6 +159,8 @@ switch (this.la.kind) {    case 'IF':
     case '=>':
       return this.parseExpression();
     case 'YIELD':
+      return this.parseExpression();
+    case 'THROW':
       return this.parseExpression();
     case 'IDENTIFIER':
       return this.parseExpression();
@@ -228,7 +230,7 @@ switch (this.la.kind) {    case 'IF':
       return this.parseStatement();
     case 'EXPORT':
       return this.parseStatement();default:
-  this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'IDENTIFIER', '@', '[', '{', 'NUMBER', 'JS', 'REGEX', 'REGEX_START', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', 'STRING', 'STRING_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', 'RETURN', 'STATEMENT', 'IMPORT', 'EXPORT'], "Invalid Line");
+  this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'THROW', 'IDENTIFIER', '@', '[', '{', 'NUMBER', 'JS', 'REGEX', 'REGEX_START', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', 'STRING', 'STRING_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', 'RETURN', 'STATEMENT', 'IMPORT', 'EXPORT'], "Invalid Line");
   }
   } finally {
     this.depth--;
@@ -286,6 +288,8 @@ parseExpression() {
       return this.parseCode();
     case 'YIELD':
       return this.parseYield();
+    case 'THROW':
+      return this.parseThrow();
     default:
       return this.parseOperation();
   }
@@ -2387,6 +2391,8 @@ switch (this.la.kind) {    case 'IF':
       return this.parseExpression();
     case 'YIELD':
       return this.parseExpression();
+    case 'THROW':
+      return this.parseExpression();
     case 'IDENTIFIER':
       return this.parseExpression();
     case '@':
@@ -2449,7 +2455,7 @@ switch (this.la.kind) {    case 'IF':
       return this.parseExpression();
     case '...':
       return this.parseSplat();default:
-  this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'IDENTIFIER', '@', '[', '{', 'NUMBER', 'JS', 'REGEX', 'REGEX_START', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', 'STRING', 'STRING_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', '...'], "Invalid Arg");
+  this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'THROW', 'IDENTIFIER', '@', '[', '{', 'NUMBER', 'JS', 'REGEX', 'REGEX_START', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', 'STRING', 'STRING_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', '...'], "Invalid Arg");
   }
   } finally {
     this.depth--;
@@ -2598,6 +2604,11 @@ switch (this.la.kind) {    case 'IF':
       return [$$1];
       }
     case 'YIELD':
+      {
+      const $$1 = this.parseArg();
+      return [$$1];
+      }
+    case 'THROW':
       {
       const $$1 = this.parseArg();
       return [$$1];
@@ -2762,7 +2773,7 @@ switch (this.la.kind) {    case 'IF':
       const $$1 = this.parseElisions();
       const $$2 = this.parseArg();
       return [...$$1, $$2];
-      }default:      this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'IDENTIFIER', '@', 'JS', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', '[', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', '{', 'NUMBER', 'STRING', 'STRING_START', 'REGEX', 'REGEX_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', '...', ','], "Invalid ArgElision");  }
+      }default:      this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'THROW', 'IDENTIFIER', '@', 'JS', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', '[', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', '{', 'NUMBER', 'STRING', 'STRING_START', 'REGEX', 'REGEX_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', '...', ','], "Invalid ArgElision");  }
   } finally {
     this.depth--;
   }

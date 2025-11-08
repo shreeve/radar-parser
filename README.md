@@ -304,7 +304,7 @@ Transformed three grammars to be LL(1)-friendly:
 ```
 Pattern Recognition:
 - Tail: 5 functions
-- Accessor: 5 functions  
+- Accessor: 5 functions
 - Dispatch: 11 functions
 - Switch: 78 functions
 - Failed: 0 functions ✅
@@ -470,7 +470,7 @@ Lexer (UNMODIFIED) → Parser (Generated) → CodeGen (UNMODIFIED)
 
 **All parser improvements come from improving solar.rip!**
 - No lexer changes needed
-- No codegen changes needed  
+- No codegen changes needed
 - Pure parser generation improvements
 
 **Result:** +206 tests fixed by ONLY improving the parser generator!
@@ -773,4 +773,3 @@ bun run test
 ```
 
 **This is parser generation done right!** 🚀
-
