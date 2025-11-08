@@ -63,7 +63,7 @@ _error(expected, msg) {
 
 // Token name lookup
 _tokenName(id) {
-  const names = {"2":"error","7":"TERMINATOR","12":"STATEMENT","25":"DEF","27":"CALL_START","29":"CALL_END","34":"YIELD","35":"INDENT","37":"OUTDENT","38":"FROM","39":"IDENTIFIER","41":"PROPERTY","43":"NUMBER","45":"STRING","46":"STRING_START","48":"STRING_END","51":"INTERPOLATION_START","52":"INTERPOLATION_END","54":"REGEX","55":"REGEX_START","57":"REGEX_END","59":",","61":"JS","62":"UNDEFINED","63":"NULL","64":"BOOL","65":"INFINITY","66":"NAN","69":"=","73":":","76":"[","77":"]","78":"@","79":"...","84":"SUPER","87":"DYNAMIC_IMPORT","88":".","89":"?.","90":"::","91":"?::","92":"INDEX_START","93":"INDEX_END","94":"INDEX_SOAK","95":"RETURN","96":"PARAM_START","97":"PARAM_END","99":"->","100":"=>","110":"ES6_OPTIONAL_INDEX","114":"NEW_TARGET","115":"IMPORT_META","116":"{","117":"FOR","119":"FOROF","120":"}","121":"WHEN","122":"OWN","125":"CLASS","126":"EXTENDS","127":"IMPORT","133":"AS","134":"DEFAULT","135":"IMPORT_ALL","136":"EXPORT","138":"EXPORT_ALL","141":"ES6_OPTIONAL_CALL","142":"FUNC_EXIST","144":"THIS","149":"..","158":"TRY","160":"FINALLY","161":"CATCH","163":"THROW","164":"(","165":")","167":"WHILE","168":"UNTIL","170":"LOOP","171":"FORIN","172":"BY","173":"FORFROM","174":"AWAIT","177":"SWITCH","179":"ELSE","182":"LEADING_WHEN","184":"IF","186":"UNLESS","187":"UNARY","188":"DO","189":"DO_IIFE","190":"UNARY_MATH","191":"-","192":"+","193":"--","194":"++","195":"?","196":"MATH","197":"**","198":"SHIFT","199":"COMPARE","200":"&","201":"^","202":"|","203":"&&","204":"||","205":"??","206":"!?","207":"RELATION","208":"SPACE?","209":"COMPOUND_ASSIGN"};
+  const names = {"2":"error","7":"TERMINATOR","12":"STATEMENT","26":"DEF","28":"CALL_START","30":"CALL_END","34":"YIELD","35":"INDENT","37":"OUTDENT","38":"FROM","39":"IDENTIFIER","41":"PROPERTY","43":"NUMBER","45":"STRING","46":"STRING_START","48":"STRING_END","51":"INTERPOLATION_START","52":"INTERPOLATION_END","54":"REGEX","55":"REGEX_START","57":"REGEX_END","59":",","61":"JS","62":"UNDEFINED","63":"NULL","64":"BOOL","65":"INFINITY","66":"NAN","69":"=","73":":","76":"[","77":"]","78":"@","79":"...","84":"SUPER","87":"DYNAMIC_IMPORT","88":".","89":"?.","90":"::","91":"?::","92":"INDEX_START","93":"INDEX_END","94":"INDEX_SOAK","95":"RETURN","96":"PARAM_START","97":"PARAM_END","99":"->","100":"=>","110":"ES6_OPTIONAL_INDEX","114":"NEW_TARGET","115":"IMPORT_META","116":"{","117":"FOR","119":"FOROF","120":"}","121":"WHEN","122":"OWN","125":"CLASS","126":"EXTENDS","127":"IMPORT","133":"AS","134":"DEFAULT","135":"IMPORT_ALL","136":"EXPORT","138":"EXPORT_ALL","141":"ES6_OPTIONAL_CALL","142":"FUNC_EXIST","144":"THIS","149":"..","158":"TRY","160":"FINALLY","161":"CATCH","163":"THROW","164":"(","165":")","167":"WHILE","168":"UNTIL","170":"LOOP","171":"FORIN","172":"BY","173":"FORFROM","174":"AWAIT","177":"SWITCH","179":"ELSE","182":"LEADING_WHEN","184":"IF","186":"UNLESS","187":"UNARY","188":"DO","189":"DO_IIFE","190":"UNARY_MATH","191":"-","192":"+","193":"--","194":"++","195":"?","196":"MATH","197":"**","198":"SHIFT","199":"COMPARE","200":"&","201":"^","202":"|","203":"&&","204":"||","205":"??","206":"!?","207":"RELATION","208":"SPACE?","209":"POST_IF","210":"POST_UNLESS","211":"COMPOUND_ASSIGN"};
   return names[id] || id;
 }
 
@@ -107,7 +107,7 @@ const $$2 = this.parseBodyTail();
     if (this.la.kind === 'TERMINATOR') {
       this._match('TERMINATOR');
       // Check if next token can start Line
-      if (['IF', 'UNLESS', 'FOR', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', 'WHILE', 'UNTIL', 'LOOP', '->', '=>', 'JS', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', '[', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', '@', 'NEW_TARGET', 'IMPORT_META', 'IDENTIFIER', '{', 'NUMBER', 'STRING', 'STRING_START', 'REGEX', 'REGEX_START', 'RETURN', 'STATEMENT', 'IMPORT', 'EXPORT'].includes(this.la.kind)) {
+      if (['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'IDENTIFIER', '@', 'JS', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', '[', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', '{', 'NUMBER', 'STRING', 'STRING_START', 'REGEX', 'REGEX_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', 'RETURN', 'STATEMENT', 'IMPORT', 'EXPORT'].includes(this.la.kind)) {
         // Rule: TERMINATOR Line BodyTail
         const elem = this.parseLine();
         const tail = this.parseBodyTail();
@@ -158,23 +158,11 @@ switch (this.la.kind) {    case 'IF':
       return this.parseExpression();
     case '=>':
       return this.parseExpression();
-    case '(':
+    case 'YIELD':
       return this.parseExpression();
-    case 'UNARY':
+    case 'IDENTIFIER':
       return this.parseExpression();
-    case 'DO':
-      return this.parseExpression();
-    case 'UNARY_MATH':
-      return this.parseExpression();
-    case '-':
-      return this.parseExpression();
-    case '+':
-      return this.parseExpression();
-    case 'AWAIT':
-      return this.parseExpression();
-    case '--':
-      return this.parseExpression();
-    case '++':
+    case '@':
       return this.parseExpression();
     case '[':
       return this.parseExpression();
@@ -198,6 +186,8 @@ switch (this.la.kind) {    case 'IF':
       return this.parseExpression();
     case 'NAN':
       return this.parseExpression();
+    case '(':
+      return this.parseExpression();
     case 'SUPER':
       return this.parseExpression();
     case 'DYNAMIC_IMPORT':
@@ -206,17 +196,29 @@ switch (this.la.kind) {    case 'IF':
       return this.parseExpression();
     case 'THIS':
       return this.parseExpression();
-    case '@':
-      return this.parseExpression();
     case 'NEW_TARGET':
       return this.parseExpression();
     case 'IMPORT_META':
       return this.parseExpression();
-    case 'IDENTIFIER':
-      return this.parseExpression();
     case 'STRING':
       return this.parseExpression();
     case 'STRING_START':
+      return this.parseExpression();
+    case 'UNARY':
+      return this.parseExpression();
+    case 'DO':
+      return this.parseExpression();
+    case 'UNARY_MATH':
+      return this.parseExpression();
+    case '-':
+      return this.parseExpression();
+    case '+':
+      return this.parseExpression();
+    case 'AWAIT':
+      return this.parseExpression();
+    case '--':
+      return this.parseExpression();
+    case '++':
       return this.parseExpression();
     case 'RETURN':
       return this.parseStatement();
@@ -226,7 +228,7 @@ switch (this.la.kind) {    case 'IF':
       return this.parseStatement();
     case 'EXPORT':
       return this.parseStatement();default:
-  this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', '(', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', '[', '{', 'NUMBER', 'JS', 'REGEX', 'REGEX_START', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', '@', 'NEW_TARGET', 'IMPORT_META', 'IDENTIFIER', 'STRING', 'STRING_START', 'RETURN', 'STATEMENT', 'IMPORT', 'EXPORT'], "Invalid Line");
+  this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'IDENTIFIER', '@', '[', '{', 'NUMBER', 'JS', 'REGEX', 'REGEX_START', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', 'STRING', 'STRING_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', 'RETURN', 'STATEMENT', 'IMPORT', 'EXPORT'], "Invalid Line");
   }
   } finally {
     this.depth--;
@@ -260,103 +262,32 @@ switch (this.la.kind) {    case 'RETURN':
 }
 
 parseExpression() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseExpression(). Possible grammar cycle.");
-}
-try {
-switch (this.la.kind) {    case 'IF':
-      return this.parseIf();
+  switch (this.la.kind) {
+    case 'IF':
     case 'UNLESS':
       return this.parseIf();
     case 'FOR':
       return this.parseFor();
-    case 'TRY':
-      return this.parseFor();
-    case 'SWITCH':
-      return this.parseFor();
-    case 'DEF':
-      return this.parseFor();
-    case 'CLASS':
-      return this.parseFor();
-    case 'PARAM_START':
-      return this.parseCode();
-    case 'UNARY':
-      return this.parseOperation();
-    case 'DO':
-      return this.parseOperation();
-    case 'UNARY_MATH':
-      return this.parseOperation();
-    case '-':
-      return this.parseOperation();
-    case '+':
-      return this.parseOperation();
-    case 'AWAIT':
-      return this.parseOperation();
-    case '--':
-      return this.parseOperation();
-    case '++':
-      return this.parseOperation();
     case 'WHILE':
-      return this.parseFor();
     case 'UNTIL':
-      return this.parseFor();
     case 'LOOP':
-      return this.parseFor();
+      return this.parseWhile();
+    case 'TRY':
+      return this.parseTry();
+    case 'SWITCH':
+      return this.parseSwitch();
+    case 'DEF':
+      return this.parseDef();
+    case 'CLASS':
+      return this.parseClass();
+    case 'PARAM_START':
     case '->':
-      return this.parseCode();
     case '=>':
       return this.parseCode();
-    case 'JS':
+    case 'YIELD':
+      return this.parseYield();
+    default:
       return this.parseOperation();
-    case 'UNDEFINED':
-      return this.parseOperation();
-    case 'NULL':
-      return this.parseOperation();
-    case 'BOOL':
-      return this.parseOperation();
-    case 'INFINITY':
-      return this.parseOperation();
-    case 'NAN':
-      return this.parseOperation();
-    case '(':
-      return this.parseOperation();
-    case '[':
-      return this.parseOperation();
-    case 'SUPER':
-      return this.parseOperation();
-    case 'DYNAMIC_IMPORT':
-      return this.parseOperation();
-    case 'DO_IIFE':
-      return this.parseOperation();
-    case 'THIS':
-      return this.parseOperation();
-    case '@':
-      return this.parseOperation();
-    case 'NEW_TARGET':
-      return this.parseOperation();
-    case 'IMPORT_META':
-      return this.parseOperation();
-    case 'IDENTIFIER':
-      return this.parseOperation();
-    case '{':
-      return this.parseOperation();
-    case 'NUMBER':
-      return this.parseOperation();
-    case 'STRING':
-      return this.parseOperation();
-    case 'STRING_START':
-      return this.parseOperation();
-    case 'REGEX':
-      return this.parseOperation();
-    case 'REGEX_START':
-      return this.parseOperation();default:
-  this._error(['IF', 'UNLESS', 'FOR', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', 'WHILE', 'UNTIL', 'LOOP', '->', '=>', 'JS', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', '[', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', '@', 'NEW_TARGET', 'IMPORT_META', 'IDENTIFIER', '{', 'NUMBER', 'STRING', 'STRING_START', 'REGEX', 'REGEX_START'], "Invalid Expression");
-  }
-  } finally {
-    this.depth--;
   }
 }
 
@@ -592,32 +523,37 @@ switch (this.la.kind) {    case 'INTERPOLATION_START':
 }
 
 parseInterpolationChunk() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseInterpolationChunk(). Possible grammar cycle.");
-}
-try {
-switch (this.la.kind) {    case 'INTERPOLATION_START':
-      {
-      const $$1 = this._match('INTERPOLATION_START');
-      const $$2 = this._match('INTERPOLATION_END');
-      return "";
-      }
-    case 'STRING':
-      {
-      const $$1 = this.parseString();
-      return $$1;
-      }
-    case 'STRING_START':
-      {
-      const $$1 = this.parseString();
-      return $$1;
-      }default:      this._error(['INTERPOLATION_START', 'STRING', 'STRING_START'], "Invalid InterpolationChunk");  }
-  } finally {
-    this.depth--;
+  // Check if it's a String
+  if (this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
+    return this.parseString();
   }
+
+  // Otherwise must be INTERPOLATION_START
+  if (this.la.kind === 'INTERPOLATION_START') {
+    this._match('INTERPOLATION_START');
+
+    // Check if empty interpolation (INTERPOLATION_END immediately)
+    if (this.la.kind === 'INTERPOLATION_END') {
+      this._match('INTERPOLATION_END');
+      return "";
+    }
+
+    // Check if indented body
+    if (this.la.kind === 'INDENT') {
+      this._match('INDENT');
+      const body = this.parseBody();
+      this._match('OUTDENT');
+      this._match('INTERPOLATION_END');
+      return body;
+    }
+
+    // Otherwise parse Body directly
+    const body = this.parseBody();
+    this._match('INTERPOLATION_END');
+    return body;
+  }
+
+  this._error(['INTERPOLATION_START', 'STRING', 'STRING_START'], "Invalid InterpolationChunk");
 }
 
 parseRegex() {
@@ -1151,41 +1087,30 @@ switch (this.la.kind) {    case ',':
 }
 
 parseParam() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseParam(). Possible grammar cycle.");
-}
-try {
-switch (this.la.kind) {    case 'IDENTIFIER':
-      {
-      const $$1 = this.parseParamVar();
-      return $$1;
-      }
-    case '@':
-      {
-      const $$1 = this.parseParamVar();
-      return $$1;
-      }
-    case '[':
-      {
-      const $$1 = this.parseParamVar();
-      return $$1;
-      }
-    case '{':
-      {
-      const $$1 = this.parseParamVar();
-      return $$1;
-      }
-    case '...':
-      {
-      const $$1 = this._match('...');
+  // Check for ... (rest or expansion)
+  if (this.la.kind === '...') {
+    this._match('...');
+    
+    // Check if there's a ParamVar after (rest param) or just expansion
+    if (this.la.kind === 'IDENTIFIER' || this.la.kind === '@' || this.la.kind === '[' || this.la.kind === '{') {
+      const paramVar = this.parseParamVar();
+      return ["rest", paramVar];
+    } else {
       return ["expansion"];
-      }default:      this._error(['IDENTIFIER', '@', '[', '{', '...'], "Invalid Param");  }
-  } finally {
-    this.depth--;
+    }
   }
+  
+  // Otherwise parse ParamVar
+  const paramVar = this.parseParamVar();
+  
+  // Check for default value
+  if (this.la.kind === '=') {
+    this._match('=');
+    const defaultExpr = this.parseExpression();
+    return ["default", paramVar, defaultExpr];
+  }
+  
+  return paramVar;
 }
 
 parseParamVar() {
@@ -1646,20 +1571,36 @@ switch (this.la.kind) {    case ',':
 }
 
 parseClass() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseClass(). Possible grammar cycle.");
-}
-try {
-switch (this.la.kind) {    case 'CLASS':
-      {
-      const $$1 = this._match('CLASS');
-      return ["class", null, null];
-      }default:      this._error(['CLASS'], "Invalid Class");  }
-  } finally {
-    this.depth--;
+  this._match('CLASS');
+  
+  // Check for optional name (SimpleAssignable)
+  let name = null;
+  if (this.la.kind === 'IDENTIFIER' || this.la.kind === '@') {
+    name = this.parseSimpleAssignable();
+  }
+  
+  // Check for optional EXTENDS
+  let superclass = null;
+  if (this.la.kind === 'EXTENDS') {
+    this._match('EXTENDS');
+    superclass = this.parseExpression();
+  }
+  
+  // Check for optional Block
+  let body = null;
+  if (this.la.kind === 'INDENT') {
+    body = this.parseBlock();
+  }
+  
+  // Build result based on what we have
+  if (body) {
+    return ["class", name, superclass, body];
+  } else if (superclass) {
+    return ["class", name, superclass];
+  } else if (name) {
+    return ["class", name, null];
+  } else {
+    return ["class", null, null];
   }
 }
 
@@ -2255,284 +2196,38 @@ try {
 }
 
 parseSlice() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseSlice(). Possible grammar cycle.");
-}
-try {
-switch (this.la.kind) {    case 'IF':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'UNLESS':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'FOR':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'WHILE':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'UNTIL':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'LOOP':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'TRY':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'SWITCH':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'DEF':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'CLASS':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'PARAM_START':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case '->':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case '=>':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case '(':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'UNARY':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'DO':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'UNARY_MATH':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case '-':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case '+':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'AWAIT':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case '--':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case '++':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case '[':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case '{':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'NUMBER':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'JS':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'REGEX':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'REGEX_START':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'UNDEFINED':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'NULL':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'BOOL':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'INFINITY':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'NAN':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'SUPER':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'DYNAMIC_IMPORT':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'DO_IIFE':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'THIS':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case '@':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'NEW_TARGET':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'IMPORT_META':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'IDENTIFIER':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'STRING':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case 'STRING_START':
-      {
-      const $$1 = this.parseExpression();
-      const $$2 = this.parseRangeDots();
-      return [$$2, $$1, null];
-      }
-    case '..':
-      {
-      const $$1 = this.parseRangeDots();
-      return [$$1, null, null];
-      }
-    case '...':
-      {
-      const $$1 = this.parseRangeDots();
-      return [$$1, null, null];
-      }default:      this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', '(', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', '[', '{', 'NUMBER', 'JS', 'REGEX', 'REGEX_START', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', '@', 'NEW_TARGET', 'IMPORT_META', 'IDENTIFIER', 'STRING', 'STRING_START', '..', '...'], "Invalid Slice");  }
-  } finally {
-    this.depth--;
+  // Check if it starts with RangeDots
+  if (this.la.kind === '..' || this.la.kind === '...') {
+    const dots = this.parseRangeDots();
+    
+    // Check if there's an expression after
+    // Must check if we can start an Expression (not at INDEX_END, OUTDENT, etc.)
+    if (this.la.kind !== 'INDEX_END' && this.la.kind !== 'OUTDENT') {
+      const endExpr = this.parseExpression();
+      return [dots, null, endExpr];  // Rule 3: RangeDots Expression
+    } else {
+      return [dots, null, null];  // Rule 4: RangeDots only
+    }
   }
+
+  // Otherwise parse Expression first
+  const startExpr = this.parseExpression();
+
+  // Check for RangeDots after expression
+  if (this.la.kind === '..' || this.la.kind === '...') {
+    const dots = this.parseRangeDots();
+    
+    // Check if there's an expression after
+    if (this.la.kind !== 'INDEX_END' && this.la.kind !== 'OUTDENT') {
+      const endExpr = this.parseExpression();
+      return [dots, startExpr, endExpr];  // Rule 1: Expression RangeDots Expression
+    } else {
+      return [dots, startExpr, null];  // Rule 2: Expression RangeDots
+    }
+  }
+
+  // No RangeDots found - this shouldn't happen in valid Slice context
+  this._error(['..',  '...'], "Invalid Slice");
 }
 
 parseArgList() {
@@ -2636,23 +2331,11 @@ switch (this.la.kind) {    case 'IF':
       return this.parseExpression();
     case '=>':
       return this.parseExpression();
-    case '(':
+    case 'YIELD':
       return this.parseExpression();
-    case 'UNARY':
+    case 'IDENTIFIER':
       return this.parseExpression();
-    case 'DO':
-      return this.parseExpression();
-    case 'UNARY_MATH':
-      return this.parseExpression();
-    case '-':
-      return this.parseExpression();
-    case '+':
-      return this.parseExpression();
-    case 'AWAIT':
-      return this.parseExpression();
-    case '--':
-      return this.parseExpression();
-    case '++':
+    case '@':
       return this.parseExpression();
     case '[':
       return this.parseExpression();
@@ -2676,6 +2359,8 @@ switch (this.la.kind) {    case 'IF':
       return this.parseExpression();
     case 'NAN':
       return this.parseExpression();
+    case '(':
+      return this.parseExpression();
     case 'SUPER':
       return this.parseExpression();
     case 'DYNAMIC_IMPORT':
@@ -2684,21 +2369,33 @@ switch (this.la.kind) {    case 'IF':
       return this.parseExpression();
     case 'THIS':
       return this.parseExpression();
-    case '@':
-      return this.parseExpression();
     case 'NEW_TARGET':
       return this.parseExpression();
     case 'IMPORT_META':
-      return this.parseExpression();
-    case 'IDENTIFIER':
       return this.parseExpression();
     case 'STRING':
       return this.parseExpression();
     case 'STRING_START':
       return this.parseExpression();
+    case 'UNARY':
+      return this.parseExpression();
+    case 'DO':
+      return this.parseExpression();
+    case 'UNARY_MATH':
+      return this.parseExpression();
+    case '-':
+      return this.parseExpression();
+    case '+':
+      return this.parseExpression();
+    case 'AWAIT':
+      return this.parseExpression();
+    case '--':
+      return this.parseExpression();
+    case '++':
+      return this.parseExpression();
     case '...':
       return this.parseSplat();default:
-  this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', '(', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', '[', '{', 'NUMBER', 'JS', 'REGEX', 'REGEX_START', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', '@', 'NEW_TARGET', 'IMPORT_META', 'IDENTIFIER', 'STRING', 'STRING_START', '...'], "Invalid Arg");
+  this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'IDENTIFIER', '@', '[', '{', 'NUMBER', 'JS', 'REGEX', 'REGEX_START', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', 'STRING', 'STRING_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', '...'], "Invalid Arg");
   }
   } finally {
     this.depth--;
@@ -2796,6 +2493,21 @@ switch (this.la.kind) {    case 'IF':
       const $$1 = this.parseArg();
       return [$$1];
       }
+    case 'WHILE':
+      {
+      const $$1 = this.parseArg();
+      return [$$1];
+      }
+    case 'UNTIL':
+      {
+      const $$1 = this.parseArg();
+      return [$$1];
+      }
+    case 'LOOP':
+      {
+      const $$1 = this.parseArg();
+      return [$$1];
+      }
     case 'TRY':
       {
       const $$1 = this.parseArg();
@@ -2821,67 +2533,27 @@ switch (this.la.kind) {    case 'IF':
       const $$1 = this.parseArg();
       return [$$1];
       }
-    case 'UNARY':
-      {
-      const $$1 = this.parseArg();
-      return [$$1];
-      }
-    case 'DO':
-      {
-      const $$1 = this.parseArg();
-      return [$$1];
-      }
-    case 'UNARY_MATH':
-      {
-      const $$1 = this.parseArg();
-      return [$$1];
-      }
-    case '-':
-      {
-      const $$1 = this.parseArg();
-      return [$$1];
-      }
-    case '+':
-      {
-      const $$1 = this.parseArg();
-      return [$$1];
-      }
-    case 'AWAIT':
-      {
-      const $$1 = this.parseArg();
-      return [$$1];
-      }
-    case '--':
-      {
-      const $$1 = this.parseArg();
-      return [$$1];
-      }
-    case '++':
-      {
-      const $$1 = this.parseArg();
-      return [$$1];
-      }
-    case 'WHILE':
-      {
-      const $$1 = this.parseArg();
-      return [$$1];
-      }
-    case 'UNTIL':
-      {
-      const $$1 = this.parseArg();
-      return [$$1];
-      }
-    case 'LOOP':
-      {
-      const $$1 = this.parseArg();
-      return [$$1];
-      }
     case '->':
       {
       const $$1 = this.parseArg();
       return [$$1];
       }
     case '=>':
+      {
+      const $$1 = this.parseArg();
+      return [$$1];
+      }
+    case 'YIELD':
+      {
+      const $$1 = this.parseArg();
+      return [$$1];
+      }
+    case 'IDENTIFIER':
+      {
+      const $$1 = this.parseArg();
+      return [$$1];
+      }
+    case '@':
       {
       const $$1 = this.parseArg();
       return [$$1];
@@ -2946,22 +2618,12 @@ switch (this.la.kind) {    case 'IF':
       const $$1 = this.parseArg();
       return [$$1];
       }
-    case '@':
-      {
-      const $$1 = this.parseArg();
-      return [$$1];
-      }
     case 'NEW_TARGET':
       {
       const $$1 = this.parseArg();
       return [$$1];
       }
     case 'IMPORT_META':
-      {
-      const $$1 = this.parseArg();
-      return [$$1];
-      }
-    case 'IDENTIFIER':
       {
       const $$1 = this.parseArg();
       return [$$1];
@@ -2996,6 +2658,46 @@ switch (this.la.kind) {    case 'IF':
       const $$1 = this.parseArg();
       return [$$1];
       }
+    case 'UNARY':
+      {
+      const $$1 = this.parseArg();
+      return [$$1];
+      }
+    case 'DO':
+      {
+      const $$1 = this.parseArg();
+      return [$$1];
+      }
+    case 'UNARY_MATH':
+      {
+      const $$1 = this.parseArg();
+      return [$$1];
+      }
+    case '-':
+      {
+      const $$1 = this.parseArg();
+      return [$$1];
+      }
+    case '+':
+      {
+      const $$1 = this.parseArg();
+      return [$$1];
+      }
+    case 'AWAIT':
+      {
+      const $$1 = this.parseArg();
+      return [$$1];
+      }
+    case '--':
+      {
+      const $$1 = this.parseArg();
+      return [$$1];
+      }
+    case '++':
+      {
+      const $$1 = this.parseArg();
+      return [$$1];
+      }
     case '...':
       {
       const $$1 = this.parseArg();
@@ -3006,7 +2708,7 @@ switch (this.la.kind) {    case 'IF':
       const $$1 = this.parseElisions();
       const $$2 = this.parseArg();
       return [...$$1, $$2];
-      }default:      this._error(['IF', 'UNLESS', 'FOR', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', 'WHILE', 'UNTIL', 'LOOP', '->', '=>', 'JS', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', '[', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', '@', 'NEW_TARGET', 'IMPORT_META', 'IDENTIFIER', '{', 'NUMBER', 'STRING', 'STRING_START', 'REGEX', 'REGEX_START', '...', ','], "Invalid ArgElision");  }
+      }default:      this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'IDENTIFIER', '@', 'JS', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', '[', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', '{', 'NUMBER', 'STRING', 'STRING_START', 'REGEX', 'REGEX_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', '...', ','], "Invalid ArgElision");  }
   } finally {
     this.depth--;
   }
@@ -3257,84 +2959,84 @@ parseFor() {
   // Check if it starts with FOR keyword
   if (this.la.kind === 'FOR') {
     this._match('FOR');
-    
+
     // Check for AWAIT (FOR AWAIT ForVariables FORFROM...)
     let hasAwait = false;
     if (this.la.kind === 'AWAIT') {
       this._match('AWAIT');
       hasAwait = true;
     }
-    
+
     // Check for OWN (FOR OWN ForVariables FOROF...)
     let hasOwn = false;
     if (this.la.kind === 'OWN') {
       this._match('OWN');
       hasOwn = true;
     }
-    
+
     // Check what comes next: ForVariables or Range
     if (this.la.kind === '[') {
       // FOR Range Block (simple range-based loop)
       const range = this.parseRange();
-      
+
       // Optional BY
       let byExpr = null;
       if (this.la.kind === 'BY') {
         this._match('BY');
         byExpr = this.parseExpression();
       }
-      
+
       const block = this.parseBlock();
       return ["for-in", [], range, byExpr, null, block];
     } else {
       // FOR ForVariables FORIN/FOROF/FORFROM Expression
       const vars = this.parseForVariables();
-      
+
       // Check loop type
       if (this.la.kind === 'FORIN') {
         this._match('FORIN');
         const expr = this.parseExpression();
-        
+
         // Optional BY
         let byExpr = null;
         if (this.la.kind === 'BY') {
           this._match('BY');
           byExpr = this.parseExpression();
         }
-        
+
         // Optional WHEN
         let whenExpr = null;
         if (this.la.kind === 'WHEN') {
           this._match('WHEN');
           whenExpr = this.parseExpression();
         }
-        
+
         const block = this.parseBlock();
         return ["for-in", vars, expr, byExpr, whenExpr, block];
       } else if (this.la.kind === 'FOROF') {
         this._match('FOROF');
         const expr = this.parseExpression();
-        
+
         // Optional WHEN
         let whenExpr = null;
         if (this.la.kind === 'WHEN') {
           this._match('WHEN');
           whenExpr = this.parseExpression();
         }
-        
+
         const block = this.parseBlock();
         return ["for-of", vars, expr, hasOwn, whenExpr, block];
       } else if (this.la.kind === 'FORFROM') {
         this._match('FORFROM');
         const expr = this.parseExpression();
-        
+
         // Optional WHEN
         let whenExpr = null;
         if (this.la.kind === 'WHEN') {
           this._match('WHEN');
           whenExpr = this.parseExpression();
         }
-        
+
         const block = this.parseBlock();
         return ["for-from", vars, expr, hasAwait, whenExpr, block];
       } else {
@@ -3342,11 +3044,7 @@ parseFor() {
       }
     }
   } else {
-    // Comprehension form: Expression FOR Range
-    const expr = this.parseExpression();
-    this._match('FOR');
-    const range = this.parseRange();
-    return ["comprehension", expr, [["for-in", [], range, null]], []];
+    this._error(['FOR'], "Invalid For");
   }
 }
 
@@ -3929,6 +3627,20 @@ while (true) {
         const right = this.parseValue();
         const [$$1, $$2, $$3] = [left, op, right];
         left = [op, left, right];
+        break;
+      }
+      case 'POST_IF': {
+        this._match('POST_IF');
+        const right = this.parseValue();
+        const [$$1, $$2, $$3] = [left, 'POST_IF', right];
+        left = ["if", right, [left]];
+        break;
+      }
+      case 'POST_UNLESS': {
+        this._match('POST_UNLESS');
+        const right = this.parseValue();
+        const [$$1, $$2, $$3] = [left, 'POST_UNLESS', right];
+        left = ["unless", right, [left]];
         break;
       }
       case 'COMPOUND_ASSIGN': {
