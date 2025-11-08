@@ -256,7 +256,7 @@ async function main(args) {
   const total = totalTests.pass + totalTests.fail;
   if (total > 0) {
     const percentage = ((totalTests.pass / total) * 100).toFixed(1);
-    console.log(`${colors.bright}• ${percentage}% passing${colors.reset}`);
+    console.log(`${colors.bright}★ ${percentage}% passing${colors.reset}`);
   }
 
   process.exit(totalTests.fail > 0 ? 1 : 0);
