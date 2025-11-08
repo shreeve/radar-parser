@@ -248,7 +248,7 @@ try {
   switch (this.la.kind) {
     case 'RETURN': {
       const returnStmt = this.parseReturn();
-      
+
       // Check for postfix conditionals (return x if y, return unless z)
       if (this.la.kind === 'POST_IF') {
         this._match('POST_IF');
@@ -259,12 +259,12 @@ try {
         const condition = this.parseOperation();
         return ["unless", condition, [returnStmt]];
       }
-      
+
       return returnStmt;
     }
     case 'STATEMENT': {
       const stmt = this._match('STATEMENT');
-      
+
       // Check for postfix conditionals (break if x, continue unless y)
       if (this.la.kind === 'POST_IF') {
         this._match('POST_IF');
@@ -275,7 +275,7 @@ try {
         const condition = this.parseOperation();
         return ["unless", condition, [stmt]];
       }
-      
+
       // No postfix conditional - just return the statement
       return stmt;
     }
@@ -3382,12 +3382,12 @@ try {
   this._match('LEADING_WHEN');
   const args = this.parseSimpleArgs();
   const block = this.parseBlock();
-  
+
   // Optionally consume trailing TERMINATOR (for when clauses in switch)
   if (this.la.kind === 'TERMINATOR') {
     this._match('TERMINATOR');
   }
-  
+
   return ["when", args, block];
   } finally {
     this.depth--;
@@ -3880,6 +3880,12 @@ while (true) {
         this._match('++');
         const [$$1, $$2] = [left, '++'];
         left = ["++", left, true];
+        break;
+      }
+      case '?': {
+        this._match('?');
+        const [$$1, $$2] = [left, '?'];
+        left = ["?", left];
         break;
       }      case 'SPACE?': {
         // Ternary operator: condition ? trueBranch : falseBranch
