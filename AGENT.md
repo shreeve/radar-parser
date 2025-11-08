@@ -195,7 +195,7 @@ git push
 ### Codebase Organization (5 Major Cleanups):
 
 1. Grammar consolidation: grammar-1.rip → grammar.rip
-2. Parser consolidation: rip-parser-rd.js → parser.js  
+2. Parser consolidation: rip-parser-rd.js → parser.js
 3. Compiler consolidation: compiler-rd.js → compiler.js
 4. Directory organization: Core files → rip/ and bumps/
 5. Documentation cleanup: 30+ obsolete files removed
@@ -391,7 +391,7 @@ When a special handler only parses base, extend with accessor loop:
 ```javascript
 parseValue() {
   let base = /* parse base */;
-  
+
   // Handle calls AND accessors iteratively
   while (true) {
     if (CALL_START) { /* calls */ }
@@ -399,7 +399,7 @@ parseValue() {
     else if ('INDEX_START') { /* indexing */ }
     else break;
   }
-  
+
   return base;
 }
 ```
@@ -411,14 +411,14 @@ Parse common prefix, then lookahead:
 ```javascript
 parseArray() {
   this._match('[');
-  
+
   const firstExpr = this.parseExpression();
-  
+
   if (this.la.kind === '..' || this.la.kind === '...') {
     // It's a Range!
     return parseRangeRest();
   }
-  
+
   // It's an Array!
   return parseArrayRest();
 }
@@ -684,7 +684,7 @@ Both use the SAME solar.rip generator!
 - The fix is always in solar.rip (parser generation)
 - S-expressions are the perfect interface
 
-**You're starting from an INCREDIBLE foundation!** 
+**You're starting from an INCREDIBLE foundation!**
 
 - 57.6% already passing
 - 2 files at 100%
@@ -696,4 +696,3 @@ Both use the SAME solar.rip generator!
 ---
 
 **This document contains everything you need to understand and continue this extraordinary project.**
-

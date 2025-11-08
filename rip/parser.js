@@ -2160,7 +2160,13 @@ parseArray() {
   // Could be:
   // - Start of array: [1, 2, 3]
   // - Start of range: [1..3] or [1...4]
-  const firstExpr = this.parseExpression();
+  // - Spread: [...arr, 1]
+  let firstExpr;
+  if (this.la.kind === '...') {
+    firstExpr = this.parseSplat();
+  } else {
+    firstExpr = this.parseExpression();
+  }
 
   // Check for range operators
   if (this.la.kind === '..' || this.la.kind === '...') {
@@ -2185,6 +2191,12 @@ parseArray() {
     // Check for elision (another comma means a hole)
     if (this.la.kind === ',') {
       list.push(null);
+      continue;
+    }
+    // Check for spread operator
+    if (this.la.kind === '...') {
+      const splat = this.parseSplat();
+      list.push(splat);
       continue;
     }
     // Parse next element
