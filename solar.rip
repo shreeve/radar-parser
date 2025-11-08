@@ -871,6 +871,8 @@ class Generator
         func = @_generateParamSpecial(rules)
       else if typeName is 'Return'
         func = @_generateReturnSpecial(rules)
+      else if typeName is 'Statement'
+        func = @_generateStatementSpecial(rules)
       else if typeName is 'Yield'
         func = @_generateYieldSpecial(rules)
       else if typeName is 'Try'
@@ -2681,6 +2683,47 @@ class Generator
 
     // No expression - just return
     return ["return"];
+  }
+'''
+
+  # Special handling for Statement (break, continue, debugger with optional postfix conditionals)
+  _generateStatementSpecial: (rules) ->
+    # Statement has 4 rules:
+    # 1. RETURN → parseReturn (handled separately)
+    # 2. STATEMENT → token (break, continue, debugger)
+    # 3. Import → parseImport (handled separately)
+    # 4. Export → parseExport (handled separately)
+    # 
+    # We add special handling to wrap STATEMENT in postfix conditionals if present
+    '''
+  parseStatement() {
+    switch (this.la.kind) {
+      case 'RETURN':
+        return this.parseReturn();
+      case 'STATEMENT': {
+        const stmt = this._match('STATEMENT');
+        
+        // Check for postfix conditionals (break if x, continue unless y)
+        if (this.la.kind === 'POST_IF') {
+          this._match('POST_IF');
+          const condition = this.parseOperation();
+          return ["if", condition, [stmt]];
+        } else if (this.la.kind === 'POST_UNLESS') {
+          this._match('POST_UNLESS');
+          const condition = this.parseOperation();
+          return ["unless", condition, [stmt]];
+        }
+        
+        // No postfix conditional - just return the statement
+        return stmt;
+      }
+      case 'IMPORT':
+        return this.parseImport();
+      case 'EXPORT':
+        return this.parseExport();
+      default:
+        this._error(['RETURN', 'STATEMENT', 'IMPORT', 'EXPORT'], "Invalid Statement");
+    }
   }
 '''
 

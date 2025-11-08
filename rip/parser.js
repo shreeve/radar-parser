@@ -245,18 +245,32 @@ if (this.depth > this.maxDepth) {
   this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseStatement(). Possible grammar cycle.");
 }
 try {
-switch (this.la.kind) {    case 'RETURN':
+  switch (this.la.kind) {
+    case 'RETURN':
       return this.parseReturn();
-    case 'STATEMENT':
-      {
-      const $$1 = this._match('STATEMENT');
-      return $$1;
+    case 'STATEMENT': {
+      const stmt = this._match('STATEMENT');
+      
+      // Check for postfix conditionals (break if x, continue unless y)
+      if (this.la.kind === 'POST_IF') {
+        this._match('POST_IF');
+        const condition = this.parseOperation();
+        return ["if", condition, [stmt]];
+      } else if (this.la.kind === 'POST_UNLESS') {
+        this._match('POST_UNLESS');
+        const condition = this.parseOperation();
+        return ["unless", condition, [stmt]];
       }
+      
+      // No postfix conditional - just return the statement
+      return stmt;
+    }
     case 'IMPORT':
       return this.parseImport();
     case 'EXPORT':
-      return this.parseExport();default:
-  this._error(['RETURN', 'STATEMENT', 'IMPORT', 'EXPORT'], "Invalid Statement");
+      return this.parseExport();
+    default:
+      this._error(['RETURN', 'STATEMENT', 'IMPORT', 'EXPORT'], "Invalid Statement");
   }
   } finally {
     this.depth--;
@@ -1647,14 +1661,14 @@ parseClass() {
 
 parseImport() {
   this._match('IMPORT');
-  
+
   // Lookahead to determine import type
   if (this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
     // IMPORT String → side-effect import
     const str = this.parseString();
     return ["import", "{}", str];
   }
-  
+
   if (this.la.kind === '{') {
     // IMPORT { ... } FROM String
     this._match('{');
@@ -1676,7 +1690,7 @@ parseImport() {
       return ["import", specifiers, str];
     }
   }
-  
+
   // Must be ImportDefaultSpecifier or ImportNamespaceSpecifier
   if (this.la.kind === 'IMPORT_ALL') {
     // IMPORT ImportNamespaceSpecifier FROM String
@@ -1685,10 +1699,10 @@ parseImport() {
     const str = this.parseString();
     return ["import", ns, str];
   }
-  
+
   // ImportDefaultSpecifier (Identifier)
   const defaultSpec = this.parseImportDefaultSpecifier();
-  
+
   // Check what comes next
   if (this.la.kind === 'FROM') {
     // Simple: IMPORT ImportDefaultSpecifier FROM String
@@ -1696,10 +1710,10 @@ parseImport() {
     const str = this.parseString();
     return ["import", defaultSpec, str];
   }
-  
+
   if (this.la.kind === ',') {
     this._match(',');
-    
+
     if (this.la.kind === 'IMPORT_ALL') {
       // IMPORT ImportDefaultSpecifier , ImportNamespaceSpecifier FROM String
       const ns = this.parseImportNamespaceSpecifier();
@@ -1707,7 +1721,7 @@ parseImport() {
       const str = this.parseString();
       return ["import", [defaultSpec, ns], str];
     }
-    
+
     if (this.la.kind === '{') {
       // IMPORT ImportDefaultSpecifier , { ImportSpecifierList OptComma } FROM String
       this._match('{');
@@ -1721,7 +1735,7 @@ parseImport() {
       return ["import", [defaultSpec, specifiers], str];
     }
   }
-  
+
   this._error(['STRING', 'STRING_START', '{', 'IMPORT_ALL', 'FROM'], "Invalid Import");
 }
 
@@ -3290,28 +3304,28 @@ parseForVariables() {
 
 parseSwitch() {
   this._match('SWITCH');
-  
+
   // Lookahead: if INDENT, no discriminant; otherwise parse Expression
   let discriminant = null;
   if (this.la.kind !== 'INDENT') {
     discriminant = this.parseExpression();
   }
-  
+
   // Now expect INDENT
   this._match('INDENT');
-  
+
   // Parse when clauses
   const whens = this.parseWhens();
-  
+
   // Check for ELSE
   let elseBlock = null;
   if (this.la.kind === 'ELSE') {
     this._match('ELSE');
     elseBlock = this.parseBlock();
   }
-  
+
   this._match('OUTDENT');
-  
+
   return ["switch", discriminant, whens, elseBlock];
 }
 
