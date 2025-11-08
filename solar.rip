@@ -1923,7 +1923,7 @@ class Generator
     this._match('UNLESS');
     const condition = this.parseOperation();
     const thenBlock = this.parseBlock();
-    
+
     // Check for ELSE
     if (this.la.kind === 'ELSE') {
       this._match('ELSE');
@@ -1931,7 +1931,7 @@ class Generator
       // unless with else = if not
       return ["if", ["!", condition], thenBlock, elseBlock];
     }
-    
+
     // No else - just unless
     return ["unless", condition, thenBlock];
   }
