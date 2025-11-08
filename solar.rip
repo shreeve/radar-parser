@@ -2693,7 +2693,7 @@ class Generator
     # 2. STATEMENT → token (break, continue, debugger)
     # 3. Import → parseImport (handled separately)
     # 4. Export → parseExport (handled separately)
-    # 
+    #
     # We add special handling to wrap STATEMENT in postfix conditionals if present
     '''
   parseStatement() {
@@ -2702,7 +2702,7 @@ class Generator
         return this.parseReturn();
       case 'STATEMENT': {
         const stmt = this._match('STATEMENT');
-        
+
         // Check for postfix conditionals (break if x, continue unless y)
         if (this.la.kind === 'POST_IF') {
           this._match('POST_IF');
@@ -2713,7 +2713,7 @@ class Generator
           const condition = this.parseOperation();
           return ["unless", condition, [stmt]];
         }
-        
+
         // No postfix conditional - just return the statement
         return stmt;
       }
