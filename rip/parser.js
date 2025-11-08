@@ -3699,7 +3699,16 @@ while (true) {
         const [$$1, $$2] = [left, '++'];
         left = ["++", left, true];
         break;
-      }      default:
+      }      case 'SPACE?': {
+        // Ternary operator: condition ? trueBranch : falseBranch
+        this._match('SPACE?');
+        const trueBranch = this.parseValue();
+        this._match(':');
+        const falseBranch = this.parseValue();
+        left = ["?:", left, trueBranch, falseBranch];
+        break;
+      }
+      default:
         return left;
     }
   }

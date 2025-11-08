@@ -1126,6 +1126,15 @@ class Generator
     while (true) {
       switch (this.la.kind) {
 ''' + opCases.join('\n') + '''
+        case 'SPACE?': {
+          // Ternary operator: condition ? trueBranch : falseBranch
+          this._match('SPACE?');
+          const trueBranch = this.parseValue();
+          this._match(':');
+          const falseBranch = this.parseValue();
+          left = ["?:", left, trueBranch, falseBranch];
+          break;
+        }
         default:
           return left;
       }
