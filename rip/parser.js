@@ -3461,13 +3461,20 @@ if (this.depth > this.maxDepth) {
   this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseUnlessBlock(). Possible grammar cycle.");
 }
 try {
-switch (this.la.kind) {    case 'UNLESS':
-      {
-      const $$1 = this._match('UNLESS');
-      const $$2 = this.parseOperation();
-      const $$3 = this.parseBlock();
-      return ["unless", $$2, $$3];
-      }default:      this._error(['UNLESS'], "Invalid UnlessBlock");  }
+  this._match('UNLESS');
+  const condition = this.parseOperation();
+  const thenBlock = this.parseBlock();
+  
+  // Check for ELSE
+  if (this.la.kind === 'ELSE') {
+    this._match('ELSE');
+    const elseBlock = this.parseBlock();
+    // unless with else = if not
+    return ["if", ["!", condition], thenBlock, elseBlock];
+  }
+  
+  // No else - just unless
+  return ["unless", condition, thenBlock];
   } finally {
     this.depth--;
   }

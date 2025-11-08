@@ -844,6 +844,8 @@ class Generator
         func = @_generateBlockSpecial(rules)
       else if typeName is 'If'
         func = @_generateIfSpecial(rules)
+      else if typeName is 'UnlessBlock'
+        func = @_generateUnlessBlockSpecial(rules)
       else if typeName is 'Assign'
         func = @_generateAssignSpecial(rules)
       else if typeName is 'Assignable'
@@ -1908,6 +1910,30 @@ class Generator
     }
 
     return result;
+  }
+'''
+
+  # Special handling for UnlessBlock (with optional ELSE)
+  _generateUnlessBlockSpecial: (rules) ->
+    # UnlessBlock has 2 rules:
+    # 1. UNLESS Operation Block → ["unless", 2, 3]
+    # 2. UNLESS Operation Block ELSE Block → ["if", ["!", 2], 3, 5]
+    '''
+  parseUnlessBlock() {
+    this._match('UNLESS');
+    const condition = this.parseOperation();
+    const thenBlock = this.parseBlock();
+    
+    // Check for ELSE
+    if (this.la.kind === 'ELSE') {
+      this._match('ELSE');
+      const elseBlock = this.parseBlock();
+      // unless with else = if not
+      return ["if", ["!", condition], thenBlock, elseBlock];
+    }
+    
+    // No else - just unless
+    return ["unless", condition, thenBlock];
   }
 '''
 
