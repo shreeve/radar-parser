@@ -2147,9 +2147,26 @@ parseArray() {
     return ["array"];
   }
 
+  // Check for multiline array with INDENT
+  if (this.la.kind === 'INDENT') {
+    this._match('INDENT');
+    // Parse array contents (after INDENT, before OUTDENT)
+    // Use parseArgList which handles multiline properly
+    let list = [];
+    if (this.la.kind !== 'OUTDENT') {
+      list = this.parseArgList();
+      if (this.la.kind === ',') {
+        this._match(',');  // Optional trailing comma
+      }
+    }
+    this._match('OUTDENT');
+    this._match(']');
+    return ["array", ...list];
+  }
+
   // Build array element list, handling commas inline
   let list = [];
-  
+
   // Handle leading commas (elisions at start)
   while (this.la.kind === ',') {
     list.push(",");  // Hole
@@ -2160,7 +2177,7 @@ parseArray() {
       return ["array", ...list];
     }
   }
-  
+
   // Now handle first element if not already at end
   if (this.la.kind === ']') {
     this._match(']');
@@ -2326,6 +2343,10 @@ parseArgList() {
       // Check for trailing comma
       if (this.la.kind === 'CALL_END' || this.la.kind === ']' || this.la.kind === 'OUTDENT') {
         break;  // Trailing comma before end
+      }
+      // Check for TERMINATOR after comma (multiline with trailing comma)
+      if (this.la.kind === 'TERMINATOR') {
+        continue;  // Let next iteration handle TERMINATOR
       }
       list.push(this.parseArg());
     }
