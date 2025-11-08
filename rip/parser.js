@@ -2147,17 +2147,24 @@ parseArray() {
     return ["array"];
   }
 
-  // Check if it starts with comma (elisions: [,1] or [,,3])
-  if (this.la.kind === ',') {
-    // Use ArgElisionList to handle elisions + elements
-    const list = this.parseArgElisionList();
-    // Check for OptElisions (trailing elisions)
-    let trailing = [];
-    if (this.la.kind === ',') {
-      trailing = this.parseOptElisions();
+  // Build array element list, handling commas inline
+  let list = [];
+  
+  // Handle leading commas (elisions at start)
+  while (this.la.kind === ',') {
+    list.push(",");  // Hole
+    this._match(',');
+    if (this.la.kind === ']') {
+      // All holes: [,,]
+      this._match(']');
+      return ["array", ...list];
     }
+  }
+  
+  // Now handle first element if not already at end
+  if (this.la.kind === ']') {
     this._match(']');
-    return ["array", ...list, ...trailing];
+    return ["array", ...list];
   }
 
   // Parse first element/expression
@@ -2182,15 +2189,15 @@ parseArray() {
   }
 
   // It's an Array - parse remaining elements
-  // We already have first element, now check for more
-  let list = [firstExpr];
+  // We already have first element (and maybe leading holes), now check for more
+  list.push(firstExpr);
 
   // Parse rest of array (commas and more elements)
   while (this.la.kind === ',') {
     this._match(',');
-    // Check for trailing comma or closing bracket
+    // Check for closing bracket (just trailing separator, no hole)
     if (this.la.kind === ']') {
-      break;
+      break;  // Trailing comma - don't add hole
     }
     // Check for elision (another comma means a hole)
     if (this.la.kind === ',') {
