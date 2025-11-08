@@ -873,6 +873,8 @@ class Generator
         func = @_generateReturnSpecial(rules)
       else if typeName is 'Yield'
         func = @_generateYieldSpecial(rules)
+      else if typeName is 'Try'
+        func = @_generateTrySpecial(rules)
       else if typeName.endsWith('Tail') and rules.length is 3
         # Special handling for *Tail recursion patterns with 3 rules
         # (separator+element+tail, separator+tail, epsilon)
@@ -894,7 +896,7 @@ class Generator
       # Wrap with recursion depth tracking (but not for special handlers that already have structure)
       if func
         # Special handlers shouldn't be wrapped as they have custom logic
-        specialHandlers = ['Root', 'Expression', 'For', 'Def', 'Block', 'If', 'Assign', 'Assignable', 'Value', 'ArgList', 'ArgElisionList', 'Array', 'Object', 'AssignList', 'AssignObj', 'InterpolationChunk', 'Slice', 'Class', 'Param', 'Return', 'Yield']
+        specialHandlers = ['Root', 'Expression', 'For', 'Def', 'Block', 'If', 'Assign', 'Assignable', 'Value', 'ArgList', 'ArgElisionList', 'Array', 'Object', 'AssignList', 'AssignObj', 'InterpolationChunk', 'Slice', 'Class', 'Param', 'Return', 'Yield', 'Try']
         isSpecial = (specialHandlers.indexOf(typeName) >= 0) or typeName.endsWith('Tail')
         if isSpecial
           # console.log "NOT wrapping #{typeName} (special handler)"
@@ -2574,6 +2576,44 @@ class Generator
 
     // No expression - just yield
     return ["yield"];
+  }
+'''
+
+  # Special handling for Try (4 rules with optional catch/finally)
+  _generateTrySpecial: (rules) ->
+    # Try has 4 rules:
+    # 1. TRY Block → ["try", 2]
+    # 2. TRY Block Catch → ["try", 2, 3]
+    # 3. TRY Block FINALLY Block → ["try", 2, 4]
+    # 4. TRY Block Catch FINALLY Block → ["try", 2, 3, 5]
+    '''
+  parseTry() {
+    this._match('TRY');
+    const tryBlock = this.parseBlock();
+
+    // Check for Catch
+    let catchClause = null;
+    if (this.la.kind === 'CATCH') {
+      catchClause = this.parseCatch();
+    }
+
+    // Check for Finally
+    if (this.la.kind === 'FINALLY') {
+      this._match('FINALLY');
+      const finallyBlock = this.parseBlock();
+      if (catchClause) {
+        return ["try", tryBlock, catchClause, finallyBlock];
+      } else {
+        return ["try", tryBlock, finallyBlock];
+      }
+    }
+
+    // Just try-catch or try only
+    if (catchClause) {
+      return ["try", tryBlock, catchClause];
+    } else {
+      return ["try", tryBlock];
+    }
   }
 '''
 

@@ -2870,21 +2870,31 @@ switch (this.la.kind) {    case ',':
 }
 
 parseTry() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseTry(). Possible grammar cycle.");
-}
-try {
-switch (this.la.kind) {    case 'TRY':
-      {
-      const $$1 = this._match('TRY');
-      const $$2 = this.parseBlock();
-      return ["try", $$2];
-      }default:      this._error(['TRY'], "Invalid Try");  }
-  } finally {
-    this.depth--;
+  this._match('TRY');
+  const tryBlock = this.parseBlock();
+
+  // Check for Catch
+  let catchClause = null;
+  if (this.la.kind === 'CATCH') {
+    catchClause = this.parseCatch();
+  }
+
+  // Check for Finally
+  if (this.la.kind === 'FINALLY') {
+    this._match('FINALLY');
+    const finallyBlock = this.parseBlock();
+    if (catchClause) {
+      return ["try", tryBlock, catchClause, finallyBlock];
+    } else {
+      return ["try", tryBlock, finallyBlock];
+    }
+  }
+
+  // Just try-catch or try only
+  if (catchClause) {
+    return ["try", tryBlock, catchClause];
+  } else {
+    return ["try", tryBlock];
   }
 }
 
