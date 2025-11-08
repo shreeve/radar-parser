@@ -1,24 +1,31 @@
 # AI Agent Handoff Document
 
-## 🎯 **Project Status: 79.5% Full Test Suite Passing!**
+## 🎯 **Project Status: 80.6% Full Test Suite Passing!**
 
-**Last Updated:** November 8, 2025 (Night Session 2 - Final)
-**Status:** ✅ **746/938 TESTS PASSING (79.5%)** ← Nearly 80%!
+**Last Updated:** November 8, 2025 (Night Session 2 - Complete)
+**Status:** ✅ **756/938 TESTS PASSING (80.6%)** ← BROKE 80%!
 
-**Test File Achievements:**
+**Test File Achievements (6 Perfect Files!):**
 - ✅ **operators.rip:** 96/96 (100.0%) ← PERFECT!
 - ✅ **literals.rip:** 30/30 (100.0%) ← PERFECT!
 - ✅ **properties.rip:** 29/29 (100.0%) ← PERFECT!
 - ✅ **strings.rip:** 78/78 (100.0%) ← PERFECT!
 - ✅ **arrows.rip:** 10/10 (100.0%) ← PERFECT!
-- ✅ **assignment.rip:** 45/46 (97.8%) ← Nearly perfect!
-- ✅ **functions.rip:** 78/81 (96.3%) ← Nearly perfect!
-- ✅ **basic.rip:** 49/54 (90.7%) ← Excellent!
-- ✅ **parens.rip:** 22/25 (88.0%) ← Strong!
-- ✅ **async.rip:** 31/36 (86.1%) ← Strong!
-- ✅ **optional.rip:** 44/54 (81.5%) ← Strong!
+- ✅ **data.rip:** 18/18 (100.0%) ← PERFECT!
 
-**Tonight's Progress:** 57.6% → 79.5% (+206 tests, +21.9%)
+**Files "Blocked" at 95%+ (Non-Parser Issues):**
+- 🔒 **assignment.rip:** 45/46 (97.8%) - 1 codegen limitation (array holes)
+- 🔒 **compatibility.rip:** 45/46 (97.8%) - 1 comprehension (postfix for)
+- 🔒 **functions.rip:** 78/81 (96.3%) - 3 LL(1) limitations (postfix if, inline arrow)
+- 🔒 **parens.rip:** 24/25 (96.0%) - 1 precedence edge case
+
+**Strong Files (85%+):**
+- ✅ **basic.rip:** 49/54 (90.7%)
+- ✅ **async.rip:** 31/36 (86.1%)
+- ✅ **semicolons.rip:** 11/13 (84.6%)
+- ✅ **optional.rip:** 44/54 (81.5%)
+
+**Session Progress:** 57.6% → 80.6% (+216 tests, +23.0%) 🚀
 **Parser Generation:** 99/99 functions (0 failures!)
 **Architecture:** lexer.js & codegen.js UNTOUCHED ← Perfect separation!
 
@@ -150,9 +157,9 @@ git push
    - Solution: _generateForSpecial handling all 13 FOR variants
    - Impact: for-in, for-of, for-from, comprehensions all work
 
-### Session 2 (Nov 8): 57.6% → 79.5% (+206 tests!)
+### Session 2 (Nov 8): 57.6% → 80.6% (+216 tests!)
 
-**10 Major Technical Fixes:**
+**11 Major Technical Fixes:**
 
 1. **String Interpolation** (+120 tests → 70.4%) 🔥 **BIGGEST WIN!**
    - Problem: InterpolationChunk only handled empty case, expected INTERPOLATION_END
@@ -203,6 +210,11 @@ git push
    - Problem: Adjacent commas, leading commas in arrays
    - Solution: Use ArgElisionList for complex patterns, null for holes
    - Impact: `[a,,c]` works, `[,1]` works, basic.rip at 90.7%
+
+11. **Unary Operators in Logical Expressions** (+4 tests → 80.6%)
+   - Problem: `!a && !b` failed with Invalid Value after `&&`
+   - Solution: Inline unary operator handling for `&&` and `||`
+   - Impact: parens.rip improved from 88% to 96%!
 
 ### Codebase Organization (5 Major Cleanups):
 
@@ -337,18 +349,36 @@ Array: [
 ## 🔧 **How to Continue to 100%**
 
 ### Current State:
-- **746/938 tests passing (79.5%)**
-- **192 tests remaining (20.5%)**
-- **5 files at 100% (operators, literals, properties, strings, arrows)** ← 5 perfect files!
-- **2 files at 95%+ (assignment 97.8%, functions 96.3%)**
-- **3 files at 85%+ (basic 90.7%, parens 88.0%, async 86.1%)**
+- **756/938 tests passing (80.6%)** ✅ **OVER 80%!**
+- **182 tests remaining (19.4%)**
+- **6 files at 100% (operators, literals, properties, strings, arrows, data)** ← 6 perfect files, 261 tests!
+- **4 files "blocked" at 95%+ (assignment, compatibility, functions, parens)**
+  - These hit non-parser limitations (codegen, LL(1), lexer)
+- **4 files at 85%+ (basic 90.7%, async 86.1%, semicolons 84.6%, optional 81.5%)**
 
-### To Reach 80% (+28 tests):
-Focus on high-value remaining issues:
-- Fix switch statement parsing (5-8 tests)
-- Fix remaining ternary edge cases (2 tests)
-- Fix break/continue in loops (4 tests)
-- Quick wins in multiple files
+### Why Assignment & Functions Are "Stuck" at 97-98%:
+
+**assignment.rip (45/46, 97.8%):**
+- Single failure: Array destructuring with holes `[a, , c]`
+- Parser: ✅ Works perfectly (outputs `["array", "a", null, "c"]`)
+- Codegen: ❌ Outputs `[a, null, c] = ...` (invalid JS, should be `[a, , c]`)
+- **Not fixable in parser** - codegen limitation per AGENT.md rules
+
+**functions.rip (78/81, 96.3%):**
+- 3 failures: All LL(1) or lexer limitations
+  1. `[(x) -> x + 1]` - inline arrow needs lexer rewriter
+  2. `return if x < 0` - postfix if on return (PostfixIf commented out for LL(1))
+  3. Similar return postfix issue
+- **Not fixable without grammar changes** - LL(1) compliance trade-off
+
+**parens.rip (24/25, 96.0%):**
+- Single failure: Complex `and` precedence in nested conditions
+- **Not fixable easily** - requires deep precedence analysis
+
+### To Reach 85% (+42 tests):
+- Fix remaining unary operator edge cases
+- Add more inline operator handling
+- Fix for-of/for-in detection issues
 
 ### To Reach 90% (+122 tests):
 - Fix for-of/for-in detection issues
@@ -356,11 +386,36 @@ Focus on high-value remaining issues:
 - Fix class/super edge cases
 - Complete more files to 100%
 
-### To Reach 100% (+216 tests):
-- Comprehensions (currently commented out for LL(1))
-- Complex array patterns (spread in various contexts)
-- Edge cases in each test file
-- Some failures are codegen limitations, not parser issues
+### To Reach 100% (+182 tests):
+
+**Remaining Failures Breakdown:**
+- **Expected INDENT** (78 failures) - Inline syntax without blocks
+  - Switch/when with `then` keyword
+  - Inline arrow functions `[(x) -> x]`
+  - Try/catch with `then`
+  - **Requires:** Lexer rewriter enhancements
+
+- **Expected )** (52 failures) - Comprehensions
+  - Array comprehensions: `(x * 2 for x in arr)`
+  - Currently commented out for LL(1) compliance
+  - **Requires:** Re-enable with special LL(1)-safe handling
+
+- **Expected OUTDENT** (37 failures) - Complex multiline patterns
+  - Break/continue in nested structures
+  - Some async/await edge cases
+  - **Requires:** Better INDENT/OUTDENT tracking
+
+- **Other Issues** (15 failures) - Various edge cases
+  - Some codegen limitations (3-4 tests)
+  - Complex operator precedence
+  - For-of/for-in detection issues
+
+**Path Forward:**
+1. Re-enable comprehensions with special grammar rules (would add ~50 tests)
+2. Enhance lexer rewriter for inline syntax (~78 tests)  
+3. Fix remaining operator precedence edge cases (~15 tests)
+4. Address codegen limitations (~4 tests) - requires codegen.js changes
+5. Handle complex INDENT/OUTDENT patterns (~35 tests)
 
 ### The Strategy:
 
