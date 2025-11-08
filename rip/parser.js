@@ -3069,7 +3069,7 @@ if (this.depth > this.maxDepth) {
 }
 try {
   this._match('CATCH');
-  
+
   // Lookahead to determine which variant
   if (this.la.kind === 'INDENT') {
     // CATCH Block (no parameter)
