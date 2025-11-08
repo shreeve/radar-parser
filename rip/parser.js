@@ -3208,36 +3208,17 @@ switch (this.la.kind) {    case 'IDENTIFIER':
 }
 
 parseForVariables() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseForVariables(). Possible grammar cycle.");
-}
-try {
-switch (this.la.kind) {    case 'IDENTIFIER':
-      {
-      const $$1 = this.parseForValue();
-      return [$$1];
-      }
-    case '@':
-      {
-      const $$1 = this.parseForValue();
-      return [$$1];
-      }
-    case '[':
-      {
-      const $$1 = this.parseForValue();
-      return [$$1];
-      }
-    case '{':
-      {
-      const $$1 = this.parseForValue();
-      return [$$1];
-      }default:      this._error(['IDENTIFIER', '@', '[', '{'], "Invalid ForVariables");  }
-  } finally {
-    this.depth--;
+  const first = this.parseForValue();
+  
+  // Check for comma (two variables: value, index)
+  if (this.la.kind === ',') {
+    this._match(',');
+    const second = this.parseForValue();
+    return [first, second];
   }
+  
+  // Just one variable
+  return [first];
 }
 
 parseSwitch() {
