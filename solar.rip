@@ -1787,8 +1787,10 @@ class Generator
       case '{':
       case 'SUPER':
       case 'DYNAMIC_IMPORT':
-      case 'DO_IIFE':
         base = this.parseAssignable();
+        break;
+      case 'DO_IIFE':
+        base = this.parseDoIife();
         break;
       case '@':
         // Bare @ alone means "this", but @ followed by more is @property
