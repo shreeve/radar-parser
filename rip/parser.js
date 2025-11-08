@@ -1259,8 +1259,25 @@ while (true) {
         break;
       case 'INDEX_START':
         this._match('INDEX_START');
-        // Check for slice vs simple index
-        if (this.la.kind === '..' || this.la.kind === '...') {
+        
+        // Check for regex indexing: value[/pattern/] or value[/pattern/, n]
+        if (this.la.kind === 'REGEX' || this.la.kind === 'REGEX_START') {
+          const regex = this.parseRegex();
+          
+          // Check for capture group number: [/pattern/, 1]
+          if (this.la.kind === ',') {
+            this._match(',');
+            const captureNum = this.parseExpression();
+            this._match('INDEX_END');
+            // Result: ["regex-index", base, regex, captureNum]
+            base = ["regex-index", base, regex, captureNum];
+          } else {
+            // No capture number: [/pattern/]
+            this._match('INDEX_END');
+            // Result: ["regex-index", base, regex, null]
+            base = ["regex-index", base, regex, null];
+          }
+        } else if (this.la.kind === '..' || this.la.kind === '...') {
           // Slice without start: [..3] or [...3]
           const slice = this.parseSlice();
           this._match('INDEX_END');
@@ -1448,10 +1465,29 @@ parseValue() {
         base = ['?::', base, 'prototype'];
       }
     } else if (this.la.kind === 'INDEX_START') {
-      // Array indexing or slicing: value[index] or value[start..end]
+      // Array indexing, slicing, or regex indexing: value[index] or value[start..end] or value[/regex/, capture]
       this._match('INDEX_START');
-      // Check for slice vs simple index
-      if (this.la.kind === '..' || this.la.kind === '...') {
+      
+      // Check for regex indexing: value[/pattern/] or value[/pattern/, n]
+      if (this.la.kind === 'REGEX' || this.la.kind === 'REGEX_START') {
+        const regex = this.parseRegex();
+        
+        // Check for capture group number: [/pattern/, 1]
+        if (this.la.kind === ',') {
+          this._match(',');
+          const captureNum = this.parseExpression();
+          this._match('INDEX_END');
+          // SimpleAssignable rule action: [$3[0], $1, ...$3.slice(1)]
+          // Where $3 is ["regex-index", regex, captureNum]
+          // Result: ["regex-index", base, regex, captureNum]
+          base = ["regex-index", base, regex, captureNum];
+        } else {
+          // No capture number: [/pattern/]
+          this._match('INDEX_END');
+          // Result: ["regex-index", base, regex, null]
+          base = ["regex-index", base, regex, null];
+        }
+      } else if (this.la.kind === '..' || this.la.kind === '...') {
         // Slice without start: [..3] or [...3]
         const slice = this.parseSlice();
         this._match('INDEX_END');
