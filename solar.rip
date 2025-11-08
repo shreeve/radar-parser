@@ -1090,15 +1090,23 @@ class Generator
         else if op is 'POST_IF' or op is 'POST_UNLESS'
           opCases.push "        const right = this.parseOperation();"  # Operation for conditions
         else if op is '&&' or op is '||'
-          # Handle unary operators inline for logical ops
+          # Handle higher-precedence operators inline for logical ops
+          # Need: unary, comparisons, bitwise, arithmetic (all higher than && ||)
           opCases.push "        let right;"
           opCases.push "        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {"
-          opCases.push "          // Parse unary operation inline"
+          opCases.push "          // Parse unary operation"
           opCases.push "          const unaryOp = this._match(this.la.kind);"
           opCases.push "          const unaryArg = this.parseValue();"
           opCases.push "          right = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];"
           opCases.push "        } else {"
           opCases.push "          right = this.parseValue();"
+          opCases.push "          // Check for higher-precedence binary operators after the value"
+          opCases.push "          // (comparison, bitwise, arithmetic - all higher than && ||)"
+          opCases.push "          if (this.la.kind === 'COMPARE' || this.la.kind === 'RELATION' || this.la.kind === '&' || this.la.kind === '^' || this.la.kind === '|' || this.la.kind === '+' || this.la.kind === '-' || this.la.kind === 'MATH' || this.la.kind === '**' || this.la.kind === 'SHIFT') {"
+          opCases.push "            const binOp = this.la.kind === 'COMPARE' || this.la.kind === 'RELATION' || this.la.kind === 'MATH' || this.la.kind === 'SHIFT' ? this._match(this.la.kind) : this._match(this.la.kind);"
+          opCases.push "            const binRight = this.parseValue();"
+          opCases.push "            right = [binOp, right, binRight];"
+          opCases.push "          }"
           opCases.push "        }"
         else
           opCases.push "        const right = this.parseValue();"  # Use Value for other ops

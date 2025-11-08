@@ -3673,12 +3673,19 @@ while (true) {
         this._match('&&');
         let right;
         if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {
-          // Parse unary operation inline
+          // Parse unary operation
           const unaryOp = this._match(this.la.kind);
           const unaryArg = this.parseValue();
           right = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
         } else {
           right = this.parseValue();
+          // Check for higher-precedence binary operators after the value
+          // (comparison, bitwise, arithmetic - all higher than && ||)
+          if (this.la.kind === 'COMPARE' || this.la.kind === 'RELATION' || this.la.kind === '&' || this.la.kind === '^' || this.la.kind === '|' || this.la.kind === '+' || this.la.kind === '-' || this.la.kind === 'MATH' || this.la.kind === '**' || this.la.kind === 'SHIFT') {
+            const binOp = this.la.kind === 'COMPARE' || this.la.kind === 'RELATION' || this.la.kind === 'MATH' || this.la.kind === 'SHIFT' ? this._match(this.la.kind) : this._match(this.la.kind);
+            const binRight = this.parseValue();
+            right = [binOp, right, binRight];
+          }
         }
         const [$$1, $$2, $$3] = [left, '&&', right];
         left = ["&&", left, right];
@@ -3688,12 +3695,19 @@ while (true) {
         this._match('||');
         let right;
         if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {
-          // Parse unary operation inline
+          // Parse unary operation
           const unaryOp = this._match(this.la.kind);
           const unaryArg = this.parseValue();
           right = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
         } else {
           right = this.parseValue();
+          // Check for higher-precedence binary operators after the value
+          // (comparison, bitwise, arithmetic - all higher than && ||)
+          if (this.la.kind === 'COMPARE' || this.la.kind === 'RELATION' || this.la.kind === '&' || this.la.kind === '^' || this.la.kind === '|' || this.la.kind === '+' || this.la.kind === '-' || this.la.kind === 'MATH' || this.la.kind === '**' || this.la.kind === 'SHIFT') {
+            const binOp = this.la.kind === 'COMPARE' || this.la.kind === 'RELATION' || this.la.kind === 'MATH' || this.la.kind === 'SHIFT' ? this._match(this.la.kind) : this._match(this.la.kind);
+            const binRight = this.parseValue();
+            right = [binOp, right, binRight];
+          }
         }
         const [$$1, $$2, $$3] = [left, '||', right];
         left = ["||", left, right];
