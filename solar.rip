@@ -1956,6 +1956,10 @@ class Generator
         const optIndex = this.parseExpression();
         this._match('INDEX_END');
         base = ['optindex', base, optIndex];
+      } else if (this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
+        // Tagged template: tag`template` or tag"string"
+        const str = this.parseString();
+        base = ["tagged-template", base, str];
       } else {
         // No more accessors or calls
         break;
