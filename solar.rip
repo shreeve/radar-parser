@@ -833,6 +833,8 @@ class Generator
       # Special cases that need custom handling
       if typeName is 'Root'
         func = @_generateRootSpecial(rules)
+      else if typeName is 'Expression'
+        func = @_generateExpressionSpecial(rules)
       else if typeName is 'For'
         func = @_generateForSpecial(rules)
       else if typeName is 'Def'
@@ -859,6 +861,16 @@ class Generator
         func = @_generateAssignListSpecial(rules)
       else if typeName is 'AssignObj'
         func = @_generateAssignObjSpecial(rules)
+      else if typeName is 'InterpolationChunk'
+        func = @_generateInterpolationChunkSpecial(rules)
+      else if typeName is 'Slice'
+        func = @_generateSliceSpecial(rules)
+      else if typeName is 'Class'
+        func = @_generateClassSpecial(rules)
+      else if typeName is 'Param'
+        func = @_generateParamSpecial(rules)
+      else if typeName is 'Return'
+        func = @_generateReturnSpecial(rules)
       else if typeName.endsWith('Tail') and rules.length is 3
         # Special handling for *Tail recursion patterns with 3 rules
         # (separator+element+tail, separator+tail, epsilon)
@@ -880,7 +892,7 @@ class Generator
       # Wrap with recursion depth tracking (but not for special handlers that already have structure)
       if func
         # Special handlers shouldn't be wrapped as they have custom logic
-        specialHandlers = ['Root', 'For', 'Def', 'Block', 'If', 'Assign', 'Assignable', 'Value', 'ArgList', 'ArgElisionList', 'Array', 'Object', 'AssignList', 'AssignObj']
+        specialHandlers = ['Root', 'Expression', 'For', 'Def', 'Block', 'If', 'Assign', 'Assignable', 'Value', 'ArgList', 'ArgElisionList', 'Array', 'Object', 'AssignList', 'AssignObj', 'InterpolationChunk', 'Slice', 'Class', 'Param', 'Return']
         isSpecial = (specialHandlers.indexOf(typeName) >= 0) or typeName.endsWith('Tail')
         if isSpecial
           # console.log "NOT wrapping #{typeName} (special handler)"
@@ -1475,6 +1487,43 @@ class Generator
   }
 '''
 
+  # Special handling for Expression (dispatch to correct alternative)
+  _generateExpressionSpecial: (rules) ->
+    # Expression is a simple dispatch of 10 alternatives:
+    # If, For, While, Try, Switch, Def, Class, Code, Yield, Operation
+    # Each starts with distinct tokens (except Operation which handles everything else)
+    '''
+  parseExpression() {
+    switch (this.la.kind) {
+      case 'IF':
+      case 'UNLESS':
+        return this.parseIf();
+      case 'FOR':
+        return this.parseFor();
+      case 'WHILE':
+      case 'UNTIL':
+      case 'LOOP':
+        return this.parseWhile();
+      case 'TRY':
+        return this.parseTry();
+      case 'SWITCH':
+        return this.parseSwitch();
+      case 'DEF':
+        return this.parseDef();
+      case 'CLASS':
+        return this.parseClass();
+      case 'PARAM_START':
+      case '->':
+      case '=>':
+        return this.parseCode();
+      case 'YIELD':
+        return this.parseYield();
+      default:
+        return this.parseOperation();
+    }
+  }
+'''
+
   # Special handling for For loops (many variants, complex disambiguation)
   _generateForSpecial: (rules) ->
     # For has 13 rules with different patterns:
@@ -1572,11 +1621,7 @@ class Generator
         }
       }
     } else {
-      // Comprehension form: Expression FOR Range
-      const expr = this.parseExpression();
-      this._match('FOR');
-      const range = this.parseRange();
-      return ["comprehension", expr, [["for-in", [], range, null]], []];
+      this._error(['FOR'], "Invalid For");
     }
   }
 '''
@@ -2232,6 +2277,208 @@ class Generator
     }
 
     this._error([], "Invalid AssignObj");
+  }
+'''
+
+  # Special handling for InterpolationChunk (3 INTERPOLATION rules + String)
+  _generateInterpolationChunkSpecial: (rules) ->
+    # InterpolationChunk has four rules:
+    # 1. INTERPOLATION_START Body INTERPOLATION_END → 2 (return body)
+    # 2. INTERPOLATION_START INDENT Body OUTDENT INTERPOLATION_END → 3 (return body)
+    # 3. INTERPOLATION_START INTERPOLATION_END → "" (empty interpolation)
+    # 4. String → pass through
+    '''
+  parseInterpolationChunk() {
+    // Check if it's a String
+    if (this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
+      return this.parseString();
+    }
+
+    // Otherwise must be INTERPOLATION_START
+    if (this.la.kind === 'INTERPOLATION_START') {
+      this._match('INTERPOLATION_START');
+
+      // Check if empty interpolation (INTERPOLATION_END immediately)
+      if (this.la.kind === 'INTERPOLATION_END') {
+        this._match('INTERPOLATION_END');
+        return "";
+      }
+
+      // Check if indented body
+      if (this.la.kind === 'INDENT') {
+        this._match('INDENT');
+        const body = this.parseBody();
+        this._match('OUTDENT');
+        this._match('INTERPOLATION_END');
+        return body;
+      }
+
+      // Otherwise parse Body directly
+      const body = this.parseBody();
+      this._match('INTERPOLATION_END');
+      return body;
+    }
+
+    this._error(['INTERPOLATION_START', 'STRING', 'STRING_START'], "Invalid InterpolationChunk");
+  }
+'''
+
+  # Special handling for Slice (check for RangeDots first to avoid ambiguity)
+  _generateSliceSpecial: (rules) ->
+    # Slice has four rules:
+    # 1. Expression RangeDots Expression → [2, 1, 3]  (expr..expr)
+    # 2. Expression RangeDots → [2, 1, null]          (expr..)
+    # 3. RangeDots Expression → [1, null, 2]          (..expr)
+    # 4. RangeDots → [1, null, null]                  (..)
+    # Need to check for RangeDots FIRST, otherwise Expression consumes everything
+    '''
+  parseSlice() {
+    // Check if it starts with RangeDots
+    if (this.la.kind === '..' || this.la.kind === '...') {
+      const dots = this.parseRangeDots();
+
+      // Check if there's an expression after
+      // Must check if we can start an Expression (not at INDEX_END, OUTDENT, etc.)
+      if (this.la.kind !== 'INDEX_END' && this.la.kind !== 'OUTDENT') {
+        const endExpr = this.parseExpression();
+        return [dots, null, endExpr];  // Rule 3: RangeDots Expression
+      } else {
+        return [dots, null, null];  // Rule 4: RangeDots only
+      }
+    }
+
+    // Otherwise parse Expression first
+    const startExpr = this.parseExpression();
+
+    // Check for RangeDots after expression
+    if (this.la.kind === '..' || this.la.kind === '...') {
+      const dots = this.parseRangeDots();
+
+      // Check if there's an expression after
+      if (this.la.kind !== 'INDEX_END' && this.la.kind !== 'OUTDENT') {
+        const endExpr = this.parseExpression();
+        return [dots, startExpr, endExpr];  // Rule 1: Expression RangeDots Expression
+      } else {
+        return [dots, startExpr, null];  // Rule 2: Expression RangeDots
+      }
+    }
+
+    // No RangeDots found - this shouldn't happen in valid Slice context
+    this._error(['..',  '...'], "Invalid Slice");
+  }
+'''
+
+  # Special handling for Class (8 combinations of name/extends/block)
+  _generateClassSpecial: (rules) ->
+    # Class has 8 rules:
+    # 1. CLASS → ["class", null, null]
+    # 2. CLASS Block → ["class", null, null, 2]
+    # 3. CLASS EXTENDS Expression → ["class", null, 3]
+    # 4. CLASS EXTENDS Expression Block → ["class", null, 3, 4]
+    # 5. CLASS SimpleAssignable → ["class", 2, null]
+    # 6. CLASS SimpleAssignable Block → ["class", 2, null, 3]
+    # 7. CLASS SimpleAssignable EXTENDS Expression → ["class", 2, 4]
+    # 8. CLASS SimpleAssignable EXTENDS Expression Block → ["class", 2, 4, 5]
+    '''
+  parseClass() {
+    this._match('CLASS');
+
+    // Check for optional name (SimpleAssignable)
+    let name = null;
+    if (this.la.kind === 'IDENTIFIER' || this.la.kind === '@') {
+      name = this.parseSimpleAssignable();
+    }
+
+    // Check for optional EXTENDS
+    let superclass = null;
+    if (this.la.kind === 'EXTENDS') {
+      this._match('EXTENDS');
+      superclass = this.parseExpression();
+    }
+
+    // Check for optional Block
+    let body = null;
+    if (this.la.kind === 'INDENT') {
+      body = this.parseBlock();
+    }
+
+    // Build result based on what we have
+    if (body) {
+      return ["class", name, superclass, body];
+    } else if (superclass) {
+      return ["class", name, superclass];
+    } else if (name) {
+      return ["class", name, null];
+    } else {
+      return ["class", null, null];
+    }
+  }
+'''
+
+  # Special handling for Param (default and rest params)
+  _generateParamSpecial: (rules) ->
+    # Param has 4 rules:
+    # 1. ParamVar → return as-is
+    # 2. ... ParamVar → ["rest", 2]
+    # 3. ParamVar = Expression → ["default", 1, 3]
+    # 4. ... → ["expansion"]
+    '''
+  parseParam() {
+    // Check for ... (rest or expansion)
+    if (this.la.kind === '...') {
+      this._match('...');
+
+      // Check if there's a ParamVar after (rest param) or just expansion
+      if (this.la.kind === 'IDENTIFIER' || this.la.kind === '@' || this.la.kind === '[' || this.la.kind === '{') {
+        const paramVar = this.parseParamVar();
+        return ["rest", paramVar];
+      } else {
+        return ["expansion"];
+      }
+    }
+
+    // Otherwise parse ParamVar
+    const paramVar = this.parseParamVar();
+
+    // Check for default value
+    if (this.la.kind === '=') {
+      this._match('=');
+      const defaultExpr = this.parseExpression();
+      return ["default", paramVar, defaultExpr];
+    }
+
+    return paramVar;
+  }
+'''
+
+  # Special handling for Return (optional expression or indented object)
+  _generateReturnSpecial: (rules) ->
+    # Return has 3 rules:
+    # 1. RETURN Expression → ["return", 2]
+    # 2. RETURN INDENT Object OUTDENT → ["return", 3]
+    # 3. RETURN → ["return"]
+    '''
+  parseReturn() {
+    this._match('RETURN');
+
+    // Check for indented object
+    if (this.la.kind === 'INDENT') {
+      this._match('INDENT');
+      const obj = this.parseObject();
+      this._match('OUTDENT');
+      return ["return", obj];
+    }
+
+    // Check if there's an expression (must check if we can start an Expression)
+    // Don't consume TERMINATOR, OUTDENT, or end markers
+    if (this.la.kind !== 'TERMINATOR' && this.la.kind !== 'OUTDENT' &&
+        this.la.kind !== '$end' && this.la.kind !== null) {
+      const expr = this.parseExpression();
+      return ["return", expr];
+    }
+
+    // No expression - just return
+    return ["return"];
   }
 '''
 
