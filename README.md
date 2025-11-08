@@ -3,7 +3,7 @@
 **Generate blazing-fast recursive descent parsers from LL(1) grammars**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-540%2F938%20(57.6%25)-yellow)](test/)
+[![Tests](https://img.shields.io/badge/Tests-746%2F938%20(79.5%25)-green)](test/)
 [![Parser](https://img.shields.io/badge/Parser-99%2F99%20functions-brightgreen)](#)
 
 ---
@@ -51,13 +51,13 @@ cd radar
 ```bash
 # Run the test suite
 bun run test
-# Output: 540/938 tests passing (57.6%)
+# Output: 746/938 tests passing (79.5%)
 
 # Test specific features
 bun run test:operators    # 96/96 (100%) ✅
 bun run test:literals     # 30/30 (100%) ✅
-bun run test:basic        # 44/54 (81.5%)
-bun run test:assignment   # 41/46 (89.1%)
+bun run test:basic        # 49/54 (90.7%)
+bun run test:assignment   # 45/46 (97.8%)
 ```
 
 ### Generate Your Own Parser
@@ -96,7 +96,7 @@ rip solar.rip -o parser.js grammar.rip
 - 🔥 Generates compact, readable code
 - ⚡ 5-10x faster than table-driven parsers
 
-### 2. Complete Rip Compiler (57.6% Passing)
+### 2. Complete Rip Compiler (79.5% Passing)
 
 ```
 rip/
@@ -108,8 +108,17 @@ rip/
 ```
 
 **Works now:**
-- ✅ Operators (100% - all 96 tests)
-- ✅ Literals (100% - all 30 tests)
+- ✅ Operators (100% - all 96 tests) ← PERFECT!
+- ✅ Literals (100% - all 30 tests) ← PERFECT!
+- ✅ Properties (100% - all 29 tests) ← PERFECT!
+- ✅ Strings (100% - all 78 tests) ← PERFECT!
+- ✅ Arrows (100% - all 10 tests) ← PERFECT!
+- ✅ String interpolation `"Hello #{name}"`
+- ✅ Ternary operator `x ? y : z`
+- ✅ Spread operators `[...arr]`
+- ✅ Tagged templates `` tag`template` ``
+- ✅ Async/await, generators, yield
+- ✅ Postfix conditionals `x = 5 if condition`
 - ✅ Assignments, functions, if/else, for loops
 - ✅ Multi-statement programs
 - ✅ Property access, indexing, slicing
@@ -222,11 +231,15 @@ JavaScript: let x;\nx = 5;
 ### Test Results
 
 ```
-Full Suite:     540/938 tests (57.6%)
+Full Suite:     746/938 tests (79.5%)
 Perfect Files:  operators.rip (96/96, 100%)
                 literals.rip (30/30, 100%)
-Nearly Perfect: basic.rip (44/54, 81.5%)
-                assignment.rip (41/46, 89.1%)
+                properties.rip (29/29, 100%)
+                strings.rip (78/78, 100%)
+                arrows.rip (10/10, 100%)
+Nearly Perfect: assignment.rip (45/46, 97.8%)
+                functions.rip (78/81, 96.3%)
+                basic.rip (49/54, 90.7%)
 ```
 
 ### What Works
@@ -251,11 +264,18 @@ compile('def fib(n)\n  if n <= 1\n    n\n  else\n    fib(n-1) + fib(n-2)')  // R
 
 ### What's Next
 
-**To 60%:** +22 tests (array elisions, spread, edge cases)
-**To 70%:** +117 tests (complete basic.rip, improve functions.rip)
-**To 100%:** +398 tests (full language support)
+**To 80%:** +7 tests (minor edge cases)
+**To 90%:** +99 tests (comprehensions, complex patterns)
+**To 100%:** +192 tests (full language support)
 
 **Strategy:** Systematic improvements to special handlers in solar.rip
+
+**Remaining challenges:**
+- Comprehensions (commented out for LL(1) compliance)
+- Inline arrow function syntax
+- Some switch/when statement patterns
+- Complex destructuring patterns
+- Various edge cases
 
 ---
 
@@ -436,7 +456,7 @@ No cryptic conflict resolution or complex precedence rules - just clean, declara
 ### 3. Proven Technology
 
 **Real compilers included:**
-- ✅ Rip: 540/938 tests passing (57.6%)
+- ✅ Rip: 746/938 tests passing (79.5%)
 - ✅ BUMPS/MUMPS: Grammar optimized, ready to use
 - ✅ Both use the SAME solar.rip generator
 
@@ -453,7 +473,7 @@ Lexer (UNMODIFIED) → Parser (Generated) → CodeGen (UNMODIFIED)
 - No codegen changes needed  
 - Pure parser generation improvements
 
-**Result:** +145 tests fixed by ONLY improving the parser generator!
+**Result:** +206 tests fixed by ONLY improving the parser generator!
 
 ---
 
@@ -739,17 +759,17 @@ With significant contributions to:
 **Radar provides a complete toolkit for building high-performance parsers:**
 
 ✅ **Solar** - Universal parser generator (SLR + RD modes)
-✅ **Working Compilers** - Rip (57.6%) + BUMPS (ready)
+✅ **Working Compilers** - Rip (79.5%) + BUMPS (ready)
 ✅ **Clean Architecture** - Lexer/Parser/CodeGen separation
 ✅ **Real Performance** - 5-10x faster than table-driven
-✅ **Production Ready** - 540/938 tests passing, actively improving
+✅ **Production Ready** - 746/938 tests passing, actively improving
 
 **Try it:**
 ```bash
 git clone https://github.com/shreeve/radar.git
 cd radar
 bun run test
-# See 57.6% passing - two files at 100%!
+# See 79.5% passing - FIVE files at 100%!
 ```
 
 **This is parser generation done right!** 🚀
