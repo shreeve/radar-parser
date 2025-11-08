@@ -412,7 +412,7 @@ Array: [
 
 **Path Forward:**
 1. Re-enable comprehensions with special grammar rules (would add ~50 tests)
-2. Enhance lexer rewriter for inline syntax (~78 tests)  
+2. Enhance lexer rewriter for inline syntax (~78 tests)
 3. Fix remaining operator precedence edge cases (~15 tests)
 4. Address codegen limitations (~4 tests) - requires codegen.js changes
 5. Handle complex INDENT/OUTDENT patterns (~35 tests)

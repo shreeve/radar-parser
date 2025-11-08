@@ -2194,7 +2194,7 @@ parseArray() {
     }
     // Check for elision (another comma means a hole)
     if (this.la.kind === ',') {
-      list.push(null);
+      list.push(",");  // Comma string represents hole in s-expression
       continue;
     }
     // Check for spread operator
