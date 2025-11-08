@@ -246,8 +246,22 @@ if (this.depth > this.maxDepth) {
 }
 try {
   switch (this.la.kind) {
-    case 'RETURN':
-      return this.parseReturn();
+    case 'RETURN': {
+      const returnStmt = this.parseReturn();
+      
+      // Check for postfix conditionals (return x if y, return unless z)
+      if (this.la.kind === 'POST_IF') {
+        this._match('POST_IF');
+        const condition = this.parseOperation();
+        return ["if", condition, [returnStmt]];
+      } else if (this.la.kind === 'POST_UNLESS') {
+        this._match('POST_UNLESS');
+        const condition = this.parseOperation();
+        return ["unless", condition, [returnStmt]];
+      }
+      
+      return returnStmt;
+    }
     case 'STATEMENT': {
       const stmt = this._match('STATEMENT');
       
@@ -919,8 +933,9 @@ parseReturn() {
   }
 
   // Check if there's an expression (must check if we can start an Expression)
-  // Don't consume TERMINATOR, OUTDENT, or end markers
+  // Don't consume TERMINATOR, OUTDENT, POST_IF, POST_UNLESS, or end markers
   if (this.la.kind !== 'TERMINATOR' && this.la.kind !== 'OUTDENT' &&
+      this.la.kind !== 'POST_IF' && this.la.kind !== 'POST_UNLESS' &&
       this.la.kind !== '$end' && this.la.kind !== null) {
     const expr = this.parseExpression();
     return ["return", expr];
@@ -1308,7 +1323,8 @@ parseValue() {
       break;
     case 'SUPER':
       // SUPER can be: super.prop, super[expr], or super(args)
-      // Check what follows to determine type
+      // Consume token and check what follows to determine type
+      this._match('SUPER');
       base = "super";  // Base case
       break;
     case 'DYNAMIC_IMPORT':
@@ -3363,13 +3379,16 @@ if (this.depth > this.maxDepth) {
   this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseWhen(). Possible grammar cycle.");
 }
 try {
-switch (this.la.kind) {    case 'LEADING_WHEN':
-      {
-      const $$1 = this._match('LEADING_WHEN');
-      const $$2 = this.parseSimpleArgs();
-      const $$3 = this.parseBlock();
-      return ["when", $$2, $$3];
-      }default:      this._error(['LEADING_WHEN'], "Invalid When");  }
+  this._match('LEADING_WHEN');
+  const args = this.parseSimpleArgs();
+  const block = this.parseBlock();
+  
+  // Optionally consume trailing TERMINATOR (for when clauses in switch)
+  if (this.la.kind === 'TERMINATOR') {
+    this._match('TERMINATOR');
+  }
+  
+  return ["when", args, block];
   } finally {
     this.depth--;
   }
