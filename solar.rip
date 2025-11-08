@@ -1904,7 +1904,7 @@ class Generator
     // Check for ELSE continuation
     if (this.la.kind === 'ELSE') {
       this._match('ELSE');
-      
+
       // Lookahead: Is it ELSE If (else-if) or ELSE Block (final else)?
       if (this.la.kind === 'IF' || this.la.kind === 'UNLESS') {
         // ELSE If - right-recursive else-if chain!
