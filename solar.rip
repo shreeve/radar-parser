@@ -693,6 +693,7 @@ class Generator
   # ============================================================================
 
   generateRecursiveDescent: ->
+
     # Generate predictive recursive descent parser
     parseFunctions = []
     debugInfo = {tail: 0, binary: 0, accessor: 0, dispatch: 0, switch: 0, failed: 0}
@@ -1070,7 +1071,22 @@ class Generator
       baseCases.push "    case '#{token}':"
       parseCode = @_generateParseCode(rule)
       baseCases.push "      {"
-      baseCases.push "      #{parseCode.replace('return ', 'left = ')};"
+      # Special handling for AWAIT to support await new X(), await typeof x, etc.
+      if token is 'AWAIT' and rule.symbols.length is 2 and rule.symbols[0] is 'AWAIT' and rule.symbols[1] is 'Value'
+        baseCases.push "      const $$1 = this._match('AWAIT');"
+        baseCases.push "      // Check if next token is another unary operator"
+        baseCases.push "      let $$2;"
+        baseCases.push "      if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+') {"
+        baseCases.push "        const unaryOp = this._match(this.la.kind);"
+        baseCases.push "        const unaryArg = this.parseValue();"
+        baseCases.push "        $$2 = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];"
+        baseCases.push "      } else {"
+        baseCases.push "        $$2 = this.parseValue();"
+        baseCases.push "      }"
+        action = @_getRDAction(rule, ["$$1", "$$2"])
+        baseCases.push "      left = #{action.replace('return ', '').replace(/;$/, '')};"
+      else
+        baseCases.push "      #{parseCode.replace('return ', 'left = ')};"
       baseCases.push "      break;"
       baseCases.push "      }"
 
@@ -1104,7 +1120,15 @@ class Generator
         else if op is 'POST_IF' or op is 'POST_UNLESS'
           opCases.push "        const right = this.parseOperation();"  # Operation for conditions
         else
-          opCases.push "        const right = this.parseValue();"  # Use Value for other ops
+          # For all other binary operators, check for unary operators on right side
+          opCases.push "        let right;"
+          opCases.push "        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {"
+          opCases.push "          const unaryOp = this._match(this.la.kind);"
+          opCases.push "          const unaryArg = this.parseValue();"
+          opCases.push "          right = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];"
+          opCases.push "        } else {"
+          opCases.push "          right = this.parseValue();"
+          opCases.push "        }"
         opCases.push "        const [$$1, $$2, $$3] = [left, op, right];"  # Use captured op
       else
         opCases.push "        this._match('#{op}');"
@@ -1121,8 +1145,12 @@ class Generator
         else if op is '&&' or op is '||'
           # Handle higher-precedence operators inline for logical ops
           # Need: unary, comparisons, bitwise, arithmetic (all higher than && ||)
+          # Also handle THROW as expression (needs parseExpression not parseValue)
           opCases.push "        let right;"
-          opCases.push "        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {"
+          opCases.push "        if (this.la.kind === 'THROW') {"
+          opCases.push "          // Parse throw as expression"
+          opCases.push "          right = this.parseThrow();"
+          opCases.push "        } else if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {"
           opCases.push "          // Parse unary operation"
           opCases.push "          const unaryOp = this._match(this.la.kind);"
           opCases.push "          const unaryArg = this.parseValue();"
@@ -1138,7 +1166,15 @@ class Generator
           opCases.push "          }"
           opCases.push "        }"
         else
-          opCases.push "        const right = this.parseValue();"  # Use Value for other ops
+          # For all other binary operators, check for unary operators on right side
+          opCases.push "        let right;"
+          opCases.push "        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {"
+          opCases.push "          const unaryOp = this._match(this.la.kind);"
+          opCases.push "          const unaryArg = this.parseValue();"
+          opCases.push "          right = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];"
+          opCases.push "        } else {"
+          opCases.push "          right = this.parseValue();"
+          opCases.push "        }"
         opCases.push "        const [$$1, $$2, $$3] = [left, '#{op}', right];"
       opCases.push "        left = #{action.replace('return ', '').replace(/;$/, '')};"
       opCases.push "        break;"
@@ -1236,9 +1272,16 @@ class Generator
           let guard = null;
           if (this.la.kind === 'WHEN') {
             this._match('WHEN');
-            // Parse guard - need to handle comparisons, so parse as mini-operation
-            // First parse a value, then check for comparison operators
-            guard = this.parseValue();
+            // Parse guard - need to handle unary operators (not, !) and comparisons
+            // Check for unary first
+            if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+') {
+              const unaryOp = this._match(this.la.kind);
+              const unaryArg = this.parseValue();
+              guard = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
+            } else {
+              guard = this.parseValue();
+            }
+            // Check for binary operators after the value/unary
             if (this.la.kind === 'COMPARE' || this.la.kind === 'RELATION' || this.la.kind === '&&' || this.la.kind === '||') {
               const op = this._match(this.la.kind);
               const right = this.parseValue();
@@ -3127,16 +3170,16 @@ class Generator
     '''
   parseExport() {
     this._match('EXPORT');
-    
+
     // Check what comes after EXPORT
     if (this.la.kind === '{') {
       // Could be: { } or { ExportSpecifierList } or { } FROM or { ExportSpecifierList } FROM
       this._match('{');
-      
+
       if (this.la.kind === '}') {
         // Empty braces: EXPORT { } or EXPORT { } FROM String
         this._match('}');
-        
+
         if (this.la.kind === 'FROM') {
           // EXPORT { } FROM String
           this._match('FROM');
@@ -3153,7 +3196,7 @@ class Generator
           this._match(',');  // OptComma
         }
         this._match('}');
-        
+
         if (this.la.kind === 'FROM') {
           // EXPORT { ExportSpecifierList } FROM String
           this._match('FROM');
@@ -3175,7 +3218,7 @@ class Generator
     } else if (this.la.kind === 'DEFAULT') {
       // EXPORT DEFAULT Expression or EXPORT DEFAULT INDENT Object OUTDENT
       this._match('DEFAULT');
-      
+
       if (this.la.kind === 'INDENT') {
         // EXPORT DEFAULT INDENT Object OUTDENT
         this._match('INDENT');
@@ -3197,7 +3240,7 @@ class Generator
       // EXPORT Identifier = Expression (with optional TERMINATOR or INDENT)
       const id = this.parseIdentifier();
       this._match('=');
-      
+
       if (this.la.kind === 'INDENT') {
         // EXPORT Identifier = INDENT Expression OUTDENT
         this._match('INDENT');
@@ -3215,7 +3258,7 @@ class Generator
         return ["export", ["=", id, expr]];
       }
     }
-    
+
     this._error(['{', 'CLASS', 'DEF', 'DEFAULT', 'EXPORT_ALL', 'IDENTIFIER'], "Invalid Export");
   }
 '''
@@ -3231,30 +3274,30 @@ class Generator
   parseImportSpecifier() {
     if (this.la.kind === 'IDENTIFIER') {
       const id = this.parseIdentifier();
-      
+
       // Check for AS (alias)
       if (this.la.kind === 'AS') {
         this._match('AS');
         const alias = this.parseIdentifier();
         return [id, alias];
       }
-      
+
       // No alias - just return identifier
       return id;
     } else if (this.la.kind === 'DEFAULT') {
       const def = this._match('DEFAULT');
-      
+
       // Check for AS (alias)
       if (this.la.kind === 'AS') {
         this._match('AS');
         const alias = this.parseIdentifier();
         return [def, alias];
       }
-      
+
       // No alias - just return DEFAULT
       return def;
     }
-    
+
     this._error(['IDENTIFIER', 'DEFAULT'], "Invalid ImportSpecifier");
   }
 '''
@@ -3271,11 +3314,11 @@ class Generator
   parseExportSpecifier() {
     if (this.la.kind === 'IDENTIFIER') {
       const id = this.parseIdentifier();
-      
+
       // Check for AS (alias)
       if (this.la.kind === 'AS') {
         this._match('AS');
-        
+
         if (this.la.kind === 'DEFAULT') {
           // Identifier AS DEFAULT (export as default)
           const def = this._match('DEFAULT');
@@ -3286,23 +3329,23 @@ class Generator
           return [id, alias];
         }
       }
-      
+
       // No alias - just return identifier
       return id;
     } else if (this.la.kind === 'DEFAULT') {
       const def = this._match('DEFAULT');
-      
+
       // Check for AS (alias)
       if (this.la.kind === 'AS') {
         this._match('AS');
         const alias = this.parseIdentifier();
         return [def, alias];
       }
-      
+
       // No alias - just return DEFAULT
       return def;
     }
-    
+
     this._error(['IDENTIFIER', 'DEFAULT'], "Invalid ExportSpecifier");
   }
 '''

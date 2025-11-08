@@ -1862,30 +1862,30 @@ if (this.depth > this.maxDepth) {
 try {
   if (this.la.kind === 'IDENTIFIER') {
     const id = this.parseIdentifier();
-    
+
     // Check for AS (alias)
     if (this.la.kind === 'AS') {
       this._match('AS');
       const alias = this.parseIdentifier();
       return [id, alias];
     }
-    
+
     // No alias - just return identifier
     return id;
   } else if (this.la.kind === 'DEFAULT') {
     const def = this._match('DEFAULT');
-    
+
     // Check for AS (alias)
     if (this.la.kind === 'AS') {
       this._match('AS');
       const alias = this.parseIdentifier();
       return [def, alias];
     }
-    
+
     // No alias - just return DEFAULT
     return def;
   }
-  
+
   this._error(['IDENTIFIER', 'DEFAULT'], "Invalid ImportSpecifier");
   } finally {
     this.depth--;
@@ -1931,16 +1931,16 @@ if (this.depth > this.maxDepth) {
 }
 try {
   this._match('EXPORT');
-  
+
   // Check what comes after EXPORT
   if (this.la.kind === '{') {
     // Could be: { } or { ExportSpecifierList } or { } FROM or { ExportSpecifierList } FROM
     this._match('{');
-    
+
     if (this.la.kind === '}') {
       // Empty braces: EXPORT { } or EXPORT { } FROM String
       this._match('}');
-      
+
       if (this.la.kind === 'FROM') {
         // EXPORT { } FROM String
         this._match('FROM');
@@ -1957,7 +1957,7 @@ try {
         this._match(',');  // OptComma
       }
       this._match('}');
-      
+
       if (this.la.kind === 'FROM') {
         // EXPORT { ExportSpecifierList } FROM String
         this._match('FROM');
@@ -1979,7 +1979,7 @@ try {
   } else if (this.la.kind === 'DEFAULT') {
     // EXPORT DEFAULT Expression or EXPORT DEFAULT INDENT Object OUTDENT
     this._match('DEFAULT');
-    
+
     if (this.la.kind === 'INDENT') {
       // EXPORT DEFAULT INDENT Object OUTDENT
       this._match('INDENT');
@@ -2001,7 +2001,7 @@ try {
     // EXPORT Identifier = Expression (with optional TERMINATOR or INDENT)
     const id = this.parseIdentifier();
     this._match('=');
-    
+
     if (this.la.kind === 'INDENT') {
       // EXPORT Identifier = INDENT Expression OUTDENT
       this._match('INDENT');
@@ -2019,7 +2019,7 @@ try {
       return ["export", ["=", id, expr]];
     }
   }
-  
+
   this._error(['{', 'CLASS', 'DEF', 'DEFAULT', 'EXPORT_ALL', 'IDENTIFIER'], "Invalid Export");
   } finally {
     this.depth--;
@@ -2097,11 +2097,11 @@ if (this.depth > this.maxDepth) {
 try {
   if (this.la.kind === 'IDENTIFIER') {
     const id = this.parseIdentifier();
-    
+
     // Check for AS (alias)
     if (this.la.kind === 'AS') {
       this._match('AS');
-      
+
       if (this.la.kind === 'DEFAULT') {
         // Identifier AS DEFAULT (export as default)
         const def = this._match('DEFAULT');
@@ -2112,23 +2112,23 @@ try {
         return [id, alias];
       }
     }
-    
+
     // No alias - just return identifier
     return id;
   } else if (this.la.kind === 'DEFAULT') {
     const def = this._match('DEFAULT');
-    
+
     // Check for AS (alias)
     if (this.la.kind === 'AS') {
       this._match('AS');
       const alias = this.parseIdentifier();
       return [def, alias];
     }
-    
+
     // No alias - just return DEFAULT
     return def;
   }
-  
+
   this._error(['IDENTIFIER', 'DEFAULT'], "Invalid ExportSpecifier");
   } finally {
     this.depth--;
@@ -3727,8 +3727,16 @@ switch (this.la.kind) {    case 'IDENTIFIER':
     case 'AWAIT':
       {
       const $$1 = this._match('AWAIT');
-      const $$2 = this.parseValue();
-      left = ["await", $$2];;
+      // Check if next token is another unary operator
+      let $$2;
+      if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+') {
+        const unaryOp = this._match(this.la.kind);
+        const unaryArg = this.parseValue();
+        $$2 = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
+      } else {
+        $$2 = this.parseValue();
+      }
+      left = ["await", $$2];
       break;
       }
     case '--':
@@ -3759,63 +3767,126 @@ while (true) {
       }
       case '+': {
         this._match('+');
-        const right = this.parseValue();
+        let right;
+        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {
+          const unaryOp = this._match(this.la.kind);
+          const unaryArg = this.parseValue();
+          right = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
+        } else {
+          right = this.parseValue();
+        }
         const [$$1, $$2, $$3] = [left, '+', right];
         left = ["+", left, right];
         break;
       }
       case '-': {
         this._match('-');
-        const right = this.parseValue();
+        let right;
+        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {
+          const unaryOp = this._match(this.la.kind);
+          const unaryArg = this.parseValue();
+          right = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
+        } else {
+          right = this.parseValue();
+        }
         const [$$1, $$2, $$3] = [left, '-', right];
         left = ["-", left, right];
         break;
       }
       case 'MATH': {
         const op = this._match('MATH');
-        const right = this.parseValue();
+        let right;
+        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {
+          const unaryOp = this._match(this.la.kind);
+          const unaryArg = this.parseValue();
+          right = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
+        } else {
+          right = this.parseValue();
+        }
         const [$$1, $$2, $$3] = [left, op, right];
         left = [op, left, right];
         break;
       }
       case '**': {
         this._match('**');
-        const right = this.parseValue();
+        let right;
+        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {
+          const unaryOp = this._match(this.la.kind);
+          const unaryArg = this.parseValue();
+          right = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
+        } else {
+          right = this.parseValue();
+        }
         const [$$1, $$2, $$3] = [left, '**', right];
         left = ["**", left, right];
         break;
       }
       case 'SHIFT': {
         const op = this._match('SHIFT');
-        const right = this.parseValue();
+        let right;
+        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {
+          const unaryOp = this._match(this.la.kind);
+          const unaryArg = this.parseValue();
+          right = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
+        } else {
+          right = this.parseValue();
+        }
         const [$$1, $$2, $$3] = [left, op, right];
         left = [op, left, right];
         break;
       }
       case 'COMPARE': {
         const op = this._match('COMPARE');
-        const right = this.parseValue();
+        let right;
+        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {
+          const unaryOp = this._match(this.la.kind);
+          const unaryArg = this.parseValue();
+          right = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
+        } else {
+          right = this.parseValue();
+        }
         const [$$1, $$2, $$3] = [left, op, right];
         left = [op, left, right];
         break;
       }
       case '&': {
         this._match('&');
-        const right = this.parseValue();
+        let right;
+        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {
+          const unaryOp = this._match(this.la.kind);
+          const unaryArg = this.parseValue();
+          right = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
+        } else {
+          right = this.parseValue();
+        }
         const [$$1, $$2, $$3] = [left, '&', right];
         left = ["&", left, right];
         break;
       }
       case '^': {
         this._match('^');
-        const right = this.parseValue();
+        let right;
+        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {
+          const unaryOp = this._match(this.la.kind);
+          const unaryArg = this.parseValue();
+          right = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
+        } else {
+          right = this.parseValue();
+        }
         const [$$1, $$2, $$3] = [left, '^', right];
         left = ["^", left, right];
         break;
       }
       case '|': {
         this._match('|');
-        const right = this.parseValue();
+        let right;
+        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {
+          const unaryOp = this._match(this.la.kind);
+          const unaryArg = this.parseValue();
+          right = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
+        } else {
+          right = this.parseValue();
+        }
         const [$$1, $$2, $$3] = [left, '|', right];
         left = ["|", left, right];
         break;
@@ -3823,7 +3894,10 @@ while (true) {
       case '&&': {
         this._match('&&');
         let right;
-        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {
+        if (this.la.kind === 'THROW') {
+          // Parse throw as expression
+          right = this.parseThrow();
+        } else if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {
           // Parse unary operation
           const unaryOp = this._match(this.la.kind);
           const unaryArg = this.parseValue();
@@ -3845,7 +3919,10 @@ while (true) {
       case '||': {
         this._match('||');
         let right;
-        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {
+        if (this.la.kind === 'THROW') {
+          // Parse throw as expression
+          right = this.parseThrow();
+        } else if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {
           // Parse unary operation
           const unaryOp = this._match(this.la.kind);
           const unaryArg = this.parseValue();
@@ -3866,21 +3943,42 @@ while (true) {
       }
       case '??': {
         this._match('??');
-        const right = this.parseValue();
+        let right;
+        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {
+          const unaryOp = this._match(this.la.kind);
+          const unaryArg = this.parseValue();
+          right = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
+        } else {
+          right = this.parseValue();
+        }
         const [$$1, $$2, $$3] = [left, '??', right];
         left = ["??", left, right];
         break;
       }
       case '!?': {
         this._match('!?');
-        const right = this.parseValue();
+        let right;
+        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {
+          const unaryOp = this._match(this.la.kind);
+          const unaryArg = this.parseValue();
+          right = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
+        } else {
+          right = this.parseValue();
+        }
         const [$$1, $$2, $$3] = [left, '!?', right];
         left = ["!?", left, right];
         break;
       }
       case 'RELATION': {
         const op = this._match('RELATION');
-        const right = this.parseValue();
+        let right;
+        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {
+          const unaryOp = this._match(this.la.kind);
+          const unaryArg = this.parseValue();
+          right = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
+        } else {
+          right = this.parseValue();
+        }
         const [$$1, $$2, $$3] = [left, op, right];
         left = [op, left, right];
         break;
@@ -3982,9 +4080,16 @@ while (true) {
         let guard = null;
         if (this.la.kind === 'WHEN') {
           this._match('WHEN');
-          // Parse guard - need to handle comparisons, so parse as mini-operation
-          // First parse a value, then check for comparison operators
-          guard = this.parseValue();
+          // Parse guard - need to handle unary operators (not, !) and comparisons
+          // Check for unary first
+          if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+') {
+            const unaryOp = this._match(this.la.kind);
+            const unaryArg = this.parseValue();
+            guard = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
+          } else {
+            guard = this.parseValue();
+          }
+          // Check for binary operators after the value/unary
           if (this.la.kind === 'COMPARE' || this.la.kind === 'RELATION' || this.la.kind === '&&' || this.la.kind === '||') {
             const op = this._match(this.la.kind);
             const right = this.parseValue();
