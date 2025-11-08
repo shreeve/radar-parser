@@ -1913,12 +1913,97 @@ if (this.depth > this.maxDepth) {
   this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseExport(). Possible grammar cycle.");
 }
 try {
-switch (this.la.kind) {    case 'EXPORT':
-      {
-      const $$1 = this._match('EXPORT');
-      const $$2 = this.parseClass();
-      return ["export", $$2];
-      }default:      this._error(['EXPORT'], "Invalid Export");  }
+  this._match('EXPORT');
+  
+  // Check what comes after EXPORT
+  if (this.la.kind === '{') {
+    // Could be: { } or { ExportSpecifierList } or { } FROM or { ExportSpecifierList } FROM
+    this._match('{');
+    
+    if (this.la.kind === '}') {
+      // Empty braces: EXPORT { } or EXPORT { } FROM String
+      this._match('}');
+      
+      if (this.la.kind === 'FROM') {
+        // EXPORT { } FROM String
+        this._match('FROM');
+        const str = this.parseString();
+        return ["export-from", "{}", str];
+      } else {
+        // EXPORT { }
+        return ["export", "{}"];
+      }
+    } else {
+      // With specifiers: EXPORT { ExportSpecifierList OptComma }
+      const specifiers = this.parseExportSpecifierList();
+      if (this.la.kind === ',') {
+        this._match(',');  // OptComma
+      }
+      this._match('}');
+      
+      if (this.la.kind === 'FROM') {
+        // EXPORT { ExportSpecifierList } FROM String
+        this._match('FROM');
+        const str = this.parseString();
+        return ["export-from", specifiers, str];
+      } else {
+        // EXPORT { ExportSpecifierList }
+        return ["export", specifiers];
+      }
+    }
+  } else if (this.la.kind === 'CLASS') {
+    // EXPORT Class
+    const cls = this.parseClass();
+    return ["export", cls];
+  } else if (this.la.kind === 'DEF') {
+    // EXPORT Def
+    const def = this.parseDef();
+    return ["export", def];
+  } else if (this.la.kind === 'DEFAULT') {
+    // EXPORT DEFAULT Expression or EXPORT DEFAULT INDENT Object OUTDENT
+    this._match('DEFAULT');
+    
+    if (this.la.kind === 'INDENT') {
+      // EXPORT DEFAULT INDENT Object OUTDENT
+      this._match('INDENT');
+      const obj = this.parseObject();
+      this._match('OUTDENT');
+      return ["export-default", obj];
+    } else {
+      // EXPORT DEFAULT Expression
+      const expr = this.parseExpression();
+      return ["export-default", expr];
+    }
+  } else if (this.la.kind === 'EXPORT_ALL') {
+    // EXPORT EXPORT_ALL FROM String
+    this._match('EXPORT_ALL');
+    this._match('FROM');
+    const str = this.parseString();
+    return ["export-all", str];
+  } else if (this.la.kind === 'IDENTIFIER') {
+    // EXPORT Identifier = Expression (with optional TERMINATOR or INDENT)
+    const id = this.parseIdentifier();
+    this._match('=');
+    
+    if (this.la.kind === 'INDENT') {
+      // EXPORT Identifier = INDENT Expression OUTDENT
+      this._match('INDENT');
+      const expr = this.parseExpression();
+      this._match('OUTDENT');
+      return ["export", ["=", id, expr]];
+    } else if (this.la.kind === 'TERMINATOR') {
+      // EXPORT Identifier = TERMINATOR Expression
+      this._match('TERMINATOR');
+      const expr = this.parseExpression();
+      return ["export", ["=", id, expr]];
+    } else {
+      // EXPORT Identifier = Expression
+      const expr = this.parseExpression();
+      return ["export", ["=", id, expr]];
+    }
+  }
+  
+  this._error(['{', 'CLASS', 'DEF', 'DEFAULT', 'EXPORT_ALL', 'IDENTIFIER'], "Invalid Export");
   } finally {
     this.depth--;
   }
@@ -2031,16 +2116,16 @@ try {
   } else {
     // Assignable OptFuncExist (String | Arguments | ES6_OPTIONAL_CALL Arguments)
     const assignable = this.parseAssignable();
-    
+
     // Check for ES6_OPTIONAL_CALL
     if (this.la.kind === 'ES6_OPTIONAL_CALL') {
       this._match('ES6_OPTIONAL_CALL');
       const args = this.parseArguments();
       return ["optcall", assignable, ...args];
     }
-    
+
     const funcExist = this.parseOptFuncExist();
-    
+
     // Lookahead: String (tagged template) or Arguments (call)
     if (this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
       const str = this.parseString();
@@ -2084,21 +2169,21 @@ if (this.depth > this.maxDepth) {
 }
 try {
   this._match('CALL_START');
-  
+
   // Check if arguments are empty
   if (this.la.kind === 'CALL_END') {
     this._match('CALL_END');
     return [];
   }
-  
+
   // Parse argument list
   const args = this.parseArgList();
-  
+
   // Optional trailing comma
   if (this.la.kind === ',') {
     this._match(',');
   }
-  
+
   this._match('CALL_END');
   return args;
   } finally {

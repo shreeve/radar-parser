@@ -889,6 +889,8 @@ class Generator
         func = @_generateArgumentsSpecial(rules)
       else if typeName is 'Import'
         func = @_generateImportSpecial(rules)
+      else if typeName is 'Export'
+        func = @_generateExportSpecial(rules)
       else if typeName.endsWith('Tail') and rules.length is 3
         # Special handling for *Tail recursion patterns with 3 rules
         # (separator+element+tail, separator+tail, epsilon)
@@ -2967,16 +2969,16 @@ class Generator
     } else {
       // Assignable OptFuncExist (String | Arguments | ES6_OPTIONAL_CALL Arguments)
       const assignable = this.parseAssignable();
-      
+
       // Check for ES6_OPTIONAL_CALL
       if (this.la.kind === 'ES6_OPTIONAL_CALL') {
         this._match('ES6_OPTIONAL_CALL');
         const args = this.parseArguments();
         return ["optcall", assignable, ...args];
       }
-      
+
       const funcExist = this.parseOptFuncExist();
-      
+
       // Lookahead: String (tagged template) or Arguments (call)
       if (this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
         const str = this.parseString();
@@ -2998,21 +3000,21 @@ class Generator
     '''
   parseArguments() {
     this._match('CALL_START');
-    
+
     // Check if arguments are empty
     if (this.la.kind === 'CALL_END') {
       this._match('CALL_END');
       return [];
     }
-    
+
     // Parse argument list
     const args = this.parseArgList();
-    
+
     // Optional trailing comma
     if (this.la.kind === ',') {
       this._match(',');
     }
-    
+
     this._match('CALL_END');
     return args;
   }
@@ -3100,6 +3102,117 @@ class Generator
     }
 
     this._error(['STRING', 'STRING_START', '{', 'IMPORT_ALL', 'FROM'], "Invalid Import");
+  }
+'''
+
+  # Special handling for Export (12 variants)
+  _generateExportSpecial: (rules) ->
+    # Export has 12 rules with different patterns:
+    # 1. EXPORT { } → ["export", "{}"]
+    # 2. EXPORT { ExportSpecifierList OptComma } → ["export", 3]
+    # 3. EXPORT Class → ["export", 2]
+    # 4. EXPORT Def → ["export", 2]
+    # 5. EXPORT Identifier = Expression → ["export", ["=", 2, 4]]
+    # 6. EXPORT Identifier = TERMINATOR Expression → ["export", ["=", 2, 5]]
+    # 7. EXPORT Identifier = INDENT Expression OUTDENT → ["export", ["=", 2, 5]]
+    # 8. EXPORT DEFAULT Expression → ["export-default", 3]
+    # 9. EXPORT DEFAULT INDENT Object OUTDENT → ["export-default", 4]
+    # 10. EXPORT EXPORT_ALL FROM String → ["export-all", 4]
+    # 11. EXPORT { } FROM String → ["export-from", "{}", 5]
+    # 12. EXPORT { ExportSpecifierList OptComma } FROM String → ["export-from", 3, 7]
+    '''
+  parseExport() {
+    this._match('EXPORT');
+    
+    // Check what comes after EXPORT
+    if (this.la.kind === '{') {
+      // Could be: { } or { ExportSpecifierList } or { } FROM or { ExportSpecifierList } FROM
+      this._match('{');
+      
+      if (this.la.kind === '}') {
+        // Empty braces: EXPORT { } or EXPORT { } FROM String
+        this._match('}');
+        
+        if (this.la.kind === 'FROM') {
+          // EXPORT { } FROM String
+          this._match('FROM');
+          const str = this.parseString();
+          return ["export-from", "{}", str];
+        } else {
+          // EXPORT { }
+          return ["export", "{}"];
+        }
+      } else {
+        // With specifiers: EXPORT { ExportSpecifierList OptComma }
+        const specifiers = this.parseExportSpecifierList();
+        if (this.la.kind === ',') {
+          this._match(',');  // OptComma
+        }
+        this._match('}');
+        
+        if (this.la.kind === 'FROM') {
+          // EXPORT { ExportSpecifierList } FROM String
+          this._match('FROM');
+          const str = this.parseString();
+          return ["export-from", specifiers, str];
+        } else {
+          // EXPORT { ExportSpecifierList }
+          return ["export", specifiers];
+        }
+      }
+    } else if (this.la.kind === 'CLASS') {
+      // EXPORT Class
+      const cls = this.parseClass();
+      return ["export", cls];
+    } else if (this.la.kind === 'DEF') {
+      // EXPORT Def
+      const def = this.parseDef();
+      return ["export", def];
+    } else if (this.la.kind === 'DEFAULT') {
+      // EXPORT DEFAULT Expression or EXPORT DEFAULT INDENT Object OUTDENT
+      this._match('DEFAULT');
+      
+      if (this.la.kind === 'INDENT') {
+        // EXPORT DEFAULT INDENT Object OUTDENT
+        this._match('INDENT');
+        const obj = this.parseObject();
+        this._match('OUTDENT');
+        return ["export-default", obj];
+      } else {
+        // EXPORT DEFAULT Expression
+        const expr = this.parseExpression();
+        return ["export-default", expr];
+      }
+    } else if (this.la.kind === 'EXPORT_ALL') {
+      // EXPORT EXPORT_ALL FROM String
+      this._match('EXPORT_ALL');
+      this._match('FROM');
+      const str = this.parseString();
+      return ["export-all", str];
+    } else if (this.la.kind === 'IDENTIFIER') {
+      // EXPORT Identifier = Expression (with optional TERMINATOR or INDENT)
+      const id = this.parseIdentifier();
+      this._match('=');
+      
+      if (this.la.kind === 'INDENT') {
+        // EXPORT Identifier = INDENT Expression OUTDENT
+        this._match('INDENT');
+        const expr = this.parseExpression();
+        this._match('OUTDENT');
+        return ["export", ["=", id, expr]];
+      } else if (this.la.kind === 'TERMINATOR') {
+        // EXPORT Identifier = TERMINATOR Expression
+        this._match('TERMINATOR');
+        const expr = this.parseExpression();
+        return ["export", ["=", id, expr]];
+      } else {
+        // EXPORT Identifier = Expression
+        const expr = this.parseExpression();
+        return ["export", ["=", id, expr]];
+      }
+    }
+    
+    this._error(['{', 'CLASS', 'DEF', 'DEFAULT', 'EXPORT_ALL', 'IDENTIFIER'], "Invalid Export");
   }
 '''
 
