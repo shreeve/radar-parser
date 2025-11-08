@@ -1,0 +1,53 @@
+{
+  "name": "radar-parser",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Fast Recursive Descent parser generator",
+  "scripts": {
+    "parser": "rip solar.rip -r -o rip/parser.js rip/grammar.rip",
+    "parser:bumps": "rip solar.rip -r -o bumps/parser.js bumps/bumps-1.js",
+    "test": "bun test/runner-hybrid.js",
+    "test:basic": "bun test/runner-hybrid.js test/rip/basic.rip",
+    "test:operators": "bun test/runner-hybrid.js test/rip/operators.rip",
+    "test:literals": "bun test/runner-hybrid.js test/rip/literals.rip",
+    "test:assignment": "bun test/runner-hybrid.js test/rip/assignment.rip"
+  },
+  "keywords": [
+    "parser",
+    "generator",
+    "recursive-descent",
+    "ll1",
+    "s-expression",
+    "sexpr",
+    "jison",
+    "yacc",
+    "bison",
+    "compiler",
+    "transpiler",
+    "ast",
+    "bun"
+  ],
+  "homepage": "https://github.com/shreeve/radar",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shreeve/radar.git"
+  },
+  "bugs": {
+    "url": "https://github.com/shreeve/radar/issues"
+  },
+  "license": "MIT",
+  "author": "Steve Shreeve <steve.shreeve@gmail.com>",
+  "main": "lib/radar.js",
+  "bin": {
+    "radar": "./lib/radar.js"
+  },
+  "files": [
+    "lib/",
+    "docs/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "bun": ">=1.0.0"
+  }
+}

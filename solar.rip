@@ -1,0 +1,2749 @@
+#!/usr/bin/env bun
+
+# ==============================================================================
+# Solar - SLR(1) Parser Generator for Rip
+#
+# Clean implementation influenced by Jison, but rewritten in Rip for
+# readability, efficiency, and maintainability.
+#
+# Author: Steve Shreeve <steve.shreeve@gmail.com>
+#   Date: November 7, 2025
+# ==============================================================================
+
+import * as fs from 'fs'
+import * as path from 'path'
+import { fileURLToPath, pathToFileURL } from 'url'
+
+VERSION = '1.4.0'
+
+# Token: A terminal symbol that cannot be broken down further
+class Token
+  constructor: (name, id) ->
+    @id   = id   # unique numeric ID for this token
+    @name = name # name of this token (terminal) ["NUMBER" or  "+"]
+
+# Type: A nonterminal symbol that can be matched by one or more rules
+class Type
+  constructor: (name, id) ->
+    @id       = id      # unique numeric ID for this type
+    @name     = name    # name of this type (nonterminal) ["ForLoop" or "Splat"]
+    @rules    = []      # rules that define this type
+    @nullable = false   # true if one of the rules can produce no tokens (ε)
+    @firsts   = new Set # FIRST set: tokens that can start this type
+    @follows  = new Set # FOLLOW set: tokens that can follow this type
+
+# Rule: One possible match for a type (Expr → Expr + Term)
+class Rule
+  constructor: (type, symbols, id) ->
+    @id         = id      # unique numeric ID for this rule
+    @type       = type    # type (nonterminal) that this rule defines
+    @symbols    = symbols # array of symbols to match ["Expr", "**"", "Expr"]
+    @nullable   = false   # true if this rule can produce no tokens (ε)
+    @firsts     = new Set # FIRST set: tokens that can start this rule
+    @precedence = 0       # operator precedence for conflict resolution
+
+# LR Item: A rule with a dot position and lookaheads (Expr → Expr • + Term)
+class Item
+  constructor: (rule, lookaheads, dot = 0) ->
+    @rule       = rule                      # the rule this item is based on
+    @dot        = dot                       # position of the dot in the rule
+    @id         = "#{@rule.id}:#{@dot}"     # compact unique ID
+    @lookaheads = new Set(lookaheads or []) # lookahead tokens (if any)
+    @nextSymbol = @rule.symbols[@dot]       # symbol after dot (if any)
+
+# LR State: A set of items with transitions to other states
+class State
+  constructor: (items...) ->
+    @id           = null           # state number (assigned later)
+    @items        = new Set(items) # kernel and closure items
+    @transitions  = new Map        # symbol → next state
+    @reductions   = new Set        # items that trigger a reduction
+    @hasShifts    = false          # if this state has shift actions
+    @hasConflicts = false          # has shift/reduce or reduce/reduce conflicts
+
+# ==============================================================================
+# SLR(1) Parser Generator
+# ==============================================================================
+
+class Generator
+  constructor: (grammar, options = {}) ->
+
+    # Configuration
+    @options     = { ...grammar.options, ...options }
+    @parseParams = grammar.parseParams
+    @yy          = {}
+    @indent      = '  '
+    @double      = @indent.repeat 2
+    @triple      = @indent.repeat 3
+
+    # Detect grammar mode based on export structure
+    @mode = grammar.bnf ? 'jison' : 'sexp'
+
+    # Grammar structures
+    @types     = {}
+    @rules     = []
+    @operators = {}
+    @conflicts = 0
+    @conflictDetails = []  # Track conflict details for debugging
+
+    # Initialize symbol table with special symbols
+    @symbolTable = new Map
+    @symbolTable.set "$accept", new Type  "$accept", 0
+    @symbolTable.set "$end"   , new Token "$end"   , 1
+    @symbolTable.set "error"  , new Token "error"  , 2
+
+    # Build parser
+    @timing '💥 Total time', =>
+      @timing 'processGrammar'   , => @processGrammar grammar # Process grammar rules
+      @timing 'buildLRAutomaton' , => @buildLRAutomaton()     # Build LR(0) automaton
+      @timing 'processLookaheads', => @processLookaheads()    # Compute FIRST/FOLLOW and assign lookaheads
+      @timing 'buildParseTable'  , => @buildParseTable()      # Build parse table with default actions
+
+  # ============================================================================
+  # Helper Functions
+  # ============================================================================
+
+  dedent: (s, indent) ->
+    m = s.match /^[ \t]+(?=\S)/gm
+    i = Math.min ...(m ? []).map (x) => x.length
+    s = s.replace(///^[ \t]{#{i}}///gm, '').trim()
+    s = s.replace /^/gm, indent if indent
+    s
+
+  timing: (label, fn) ->
+    console.time(label)
+    result = fn() if fn
+    console.timeEnd(label)
+    result
+
+  # ============================================================================
+  # Grammar Processing
+  # ============================================================================
+
+  processGrammar!: (grammar) ->
+    @_processOperators grammar.operators if grammar.operators
+    @_buildRules (grammar.grammar or grammar.bnf)
+    @_augmentGrammar grammar
+
+  _processOperators!: (ops) ->
+    for precedence, i in ops
+      for k in [1...precedence.length]
+        @operators[precedence[k]] = {precedence: i + 1, assoc: precedence[0]}
+
+  _buildRules: (grammar) ->
+    actionGroups = {}
+    ruleTable    = [0] # No entry in slot 0
+    @symbolIds   = {"$accept": 0, "$end": 1, "error": 2}  # Add reserved symbols
+    symbolId     = 3 # Next available symbol ID (after special symbols)
+
+    # Store original grammar for RD action extraction
+    @originalGrammar = grammar
+
+    # Add symbol to symbol table if not already present
+    addSymbol = (name) =>
+      return if not name or @symbolIds[name]
+
+      # Use existing symbol or create a new one
+      unless symbol = @symbolTable.get(name)
+        id = symbolId++
+        symbol = if grammar[name] then new Type(name, id) else new Token(name, id)
+        @symbolTable.set name, symbol
+      @symbolIds[name] = symbol.id
+
+    # Process types and their rules
+    for own type, rules of grammar
+      addSymbol type
+      @types[type] = @symbolTable.get type
+
+      handles = if typeof rules is 'string' then rules.split(/\s*\|\s*/g) else rules[..]
+
+      for handle, handleIndex in handles
+        [symbols, action, precedence] = @_parseHandle handle
+
+        # Add symbols to grammar
+        addSymbol symbol for symbol in symbols
+
+        # Process semantic actions
+        if action
+          action = @_processGrammarAction action, symbols
+          label = 'case ' + (@rules.length + 1) + ':'
+          actionGroups[action]?.push(label) or actionGroups[action] = [label]
+
+        # Create rule
+        rule = new Rule type, symbols, @rules.length + 1
+
+        # Store original action for RD parser
+        rule.originalAction = if typeof handle is 'object' then handle[1] else null
+
+        # Set precedence
+        @_assignPrecedence rule, precedence
+
+        @rules.push rule
+        ruleTable.push [@symbolIds[type], if symbols[0] is '' then 0 else symbols.length]
+        @types[type].rules.push rule
+
+    # Generate parser components
+    actionsCode = @_generateActionCode actionGroups
+    @ruleData = ruleTable
+    @_buildTokenMappings()
+
+    parameters = "yytext, yyleng, yylineno, yy, yystate, $$, _$"
+    parameters += ', ' + @parseParams.join(', ') if @parseParams?.length
+
+    @performAction = "function anonymous(#{parameters}) {\n#{actionsCode}\n#{@indent}}"
+
+  _parseHandle: (handle) ->
+    if Array.isArray handle
+      symbols = if typeof handle[0] is 'string' then handle[0].trim().split(/\s+/) else handle[0][..]
+      symbols = symbols.map (e) -> e.replace(/\[[a-zA-Z_][a-zA-Z0-9_-]*\]/g, '')
+
+      action     = handle[1] ?? 1
+      precedence = handle[2]
+
+      [symbols, action, precedence]
+    else
+      cleaned = handle.replace /\[[a-zA-Z_][a-zA-Z0-9_-]*\]/g, ''
+      symbols = cleaned.trim().split ' '
+      [symbols, null, null]
+
+  _processGrammarAction: (action, symbols) ->
+    switch @mode
+
+      when 'sexp'
+        getToken = (_, n) -> "$$[$0#{parseInt(n, 10) - symbols.length || ''}]"
+
+        # Replace token references with calculated $$[n] references
+        switch typeof action
+          when 'string'
+            regex = /(?<!\$)\$(-?\d+)/gm # Look for $n (capture just digits)
+            regex = /(-?\d+)/g unless regex.test(action) # Or, all bare numbers
+            result = action.replace(regex, getToken).trim()
+          when 'number', 'undefined'
+            result = getToken('', action || 1) # No action or just a number
+          else
+            result = 'null'
+
+        return "return #{result};"
+
+      when 'jison'
+        switch typeof action
+          when 'string'
+            return @_generateClassAction(action, symbols)
+          when 'undefined'
+            # Default: for empty rules, return ε/null, otherwise $$[1]
+            return if symbols.length is 0 then 'return null;' else 'return $$[1];'
+
+    throw new Error "Invalid action type for mode #{@mode}: #{typeof action}"
+
+  _generateClassAction: (action, symbols) ->
+    # Jison mode: process string actions like "-> new Value $1"
+    # Process named semantic values
+    if action.match(/[$@][a-zA-Z][a-zA-Z0-9_]*/)
+      count = {}
+      names = {}
+
+      for token, i in symbols
+        symbols_i = token.match(/\[[a-zA-Z][a-zA-Z0-9_-]*\]/) # Like [var]
+        if symbols_i
+          symbols_i = symbols_i[0].slice(1, -1)
+        else
+          symbols_i = token
+
+        if names[symbols_i]
+          names[symbols_i + (++count[symbols_i])] = i + 1
+        else
+          names[symbols_i] = i + 1
+          names[symbols_i + "1"] = i + 1
+          count[symbols_i] = 1
+
+      action = action
+        .replace /\$([a-zA-Z][a-zA-Z0-9_]*)/g, (str, pl) -> if names[pl] then '$' + names[pl] else str # Like $var
+        .replace  /@([a-zA-Z][a-zA-Z0-9_]*)/g, (str, pl) -> if names[pl] then '@' + names[pl] else str # Like @var
+
+    # Transform $$ and positional references
+    action
+      .replace(/([^'"])\$\$|^\$\$/g, '$1this.$') # Like $$var
+      .replace(/@[0$]/g, "this._$") # Like @var
+      .replace(/\$(-?\d+)/g, (_, n) -> "$$[$0" + (parseInt(n, 10) - symbols.length || '') + "]") # Like $1
+      .replace( /@(-?\d+)/g, (_, n) -> "_$[$0" +               (n - symbols.length || '') + "]") # Like @1
+
+  _assignPrecedence!: (rule, precedence) ->
+    if precedence?.prec and @operators[precedence.prec]
+      rule.precedence = @operators[precedence.prec].precedence
+    else if rule.precedence is 0
+      # Use rightmost token's precedence
+      for token in rule.symbols by -1
+        if @operators[token] and not @types[token]
+          rule.precedence = @operators[token].precedence
+          break
+
+  _generateActionCode: (actionGroups) ->
+    actions = []
+
+    # Add $0 variable for token position references
+    actions.push @double + 'const $0 = $$.length - 1;'
+
+    actions.push @double + 'switch (yystate) {'
+    for action, labels of actionGroups
+      if '\n' in action
+        actions.push @triple + labels.join(' ')
+        actions.push @dedent action, @triple
+      else
+        actions.push @triple + labels.concat(action).join(' ')
+      actions.push @triple + 'break;' unless action.trimStart().startsWith('return')
+    actions.push @double + '}'
+
+    actions.join('\n')
+      .replace(/YYABORT/g, 'return false')
+      .replace(/YYACCEPT/g, 'return true')
+
+  _buildTokenMappings!: ->
+    @tokenNames = {}
+
+    for own name, id of @symbolIds when id >= 2
+      unless @types[name]
+        @tokenNames[id] = name
+
+  _augmentGrammar!: (grammar) ->
+    throw new Error "Grammar error: no rules defined." if @rules.length is 0
+
+    @start = grammar.start or @rules[0].type
+    unless @types[@start]
+      throw new Error "Grammar error: no start symbol '#{@start}' defined."
+
+    acceptRule = new Rule "$accept", [@start, "$end"], 0
+    @rules.push acceptRule
+    @acceptRuleIndex = @rules.length - 1
+
+    @types.$accept = @symbolTable.get "$accept"
+    @types.$accept.rules.push acceptRule
+    @types[@start].follows.add "$end"
+
+  # ============================================================================
+  # LR Automaton Construction
+  # ============================================================================
+
+  buildLRAutomaton!: ->
+    acceptItem = new Item @rules[@acceptRuleIndex]
+    firstState = @_closure new State(acceptItem)
+    firstState.id = 0
+    firstState.signature = "#{acceptItem.rule.id}.#{acceptItem.dot}"
+
+    states = [firstState]
+    stateMap = new Map # kernel signature -> state index
+    stateMap.set firstState.signature, 0
+
+    # Build automaton by exploring all transitions
+    marked = 0
+    while marked < states.length
+      itemSet = states[marked++]
+
+      # Single pass: group items by nextSymbol
+      symbolItems = new Map
+      for item from itemSet.items when item.nextSymbol and item.nextSymbol isnt '$end'
+        items = symbolItems.get(item.nextSymbol)
+        unless items
+          items = []
+          symbolItems.set(item.nextSymbol, items)
+        items.push(item)
+
+      # Process each symbol with its pre-collected items
+      for [symbol, items] from symbolItems
+        @_insertStateWithItems symbol, items, itemSet, states, stateMap
+
+    @states = states
+
+  # Compute closure of an LR item set (lookaheads assigned later using FOLLOW sets)
+  _closure: (itemSet) ->
+    closureSet = new State
+    workingSet = new Set itemSet.items
+    itemCores  = new Map # item.id -> item
+
+    # Process all items
+    while workingSet.size > 0
+      newItems = new Set
+
+      # Only process item cores we haven't yet seen
+      for item from workingSet when !itemCores.has(item.id)
+
+        # Add item to closure
+        closureSet.items.add(item)
+        itemCores.set(item.id, item)
+
+        # Check item type
+        {nextSymbol} = item
+
+        if not nextSymbol
+          # Reduction item
+          closureSet.reductions.add(item)
+          closureSet.hasConflicts = closureSet.reductions.size > 1 or closureSet.hasShifts
+        else if not @types[nextSymbol]
+          # Shift item (token)
+          closureSet.hasShifts = true
+          closureSet.hasConflicts = closureSet.reductions.size > 0
+        else
+          # Type - add items for all its rules
+          type = @types[nextSymbol]
+          for rule in type.rules
+            # Create [B → •γ] with empty lookaheads (will be filled by FOLLOW sets later)
+            newItem = new Item rule
+            newItems.add(newItem) unless itemCores.has(newItem.id)
+
+      workingSet = newItems
+
+    closureSet
+
+  # Compute GOTO(state, symbol) - transitions from one state to another
+  _goto: (itemSet, symbol) ->
+    gotoSet = new State
+
+    for item from itemSet.items when item.nextSymbol is symbol
+      # Create advanced item (lookaheads will be set from FOLLOW sets later)
+      newItem = new Item item.rule, null, item.dot + 1
+      gotoSet.items.add newItem
+
+    if gotoSet.items.size is 0 then gotoSet else @_closure gotoSet
+
+  # Insert new state into automaton (items provided - no scanning needed)
+  _insertStateWithItems!: (symbol, items, itemSet, states, stateMap) ->
+    # Build kernel signature from provided items (already filtered)
+    kernel = ([item.rule.id, item.dot + 1] for item in items)
+    return unless kernel.length
+
+    kernel.sort (a, b) -> (a[0] - b[0]) or (a[1] - b[1])
+    kernelSig = (pid + '.' + pos for [pid, pos] in kernel).join '|'
+
+    existing = stateMap.get kernelSig
+    if existing?
+      itemSet.transitions.set symbol, existing
+      return
+
+    # Kernel is new; compute closure now
+    gotoSet = @_goto itemSet, symbol
+    return unless gotoSet.items.size > 0
+
+    gotoSet.signature = kernelSig
+    gotoSet.id = states.length
+    stateMap.set kernelSig, gotoSet.id
+    itemSet.transitions.set symbol, gotoSet.id
+    states.push gotoSet
+
+  # ============================================================================
+  # Lookahead Computation - SLR(1) Algorithm
+  # ============================================================================
+
+  processLookaheads!: ->
+    @processLookaheads = => {} # Computes once; no-op on subsequent calls
+    @_computeNullableSets()    # ε-derivable symbols
+    @_computeFirstSets()       # First tokens
+    @_computeFollowSets()      # Following tokens
+    @_assignItemLookaheads()   # FOLLOW(A) → item lookaheads
+
+  # Determine nullable symbols (can derive ε)
+  _computeNullableSets!: ->
+    changed = true
+    while changed
+      changed = false
+
+      # Mark rules nullable if all handle symbols are nullable
+      for rule in @rules when not rule.nullable
+        if rule.symbols.every (symbol) => @_isNullable symbol
+          rule.nullable = changed = true
+
+      # Propagate to types
+      for symbol, type of @types when not @_isNullable symbol
+        if type.rules.some (p) -> p.nullable
+          type.nullable = changed = true
+
+  _isNullable: (symbol) ->
+    return true if symbol is ''
+    return symbol.every((s) => @_isNullable s) if Array.isArray symbol
+    @types[symbol]?.nullable or false
+
+  # Compute FIRST sets (tokens that can begin derivations)
+  _computeFirstSets!: ->
+    changed = true
+    while changed
+      changed = false
+
+      for rule in @rules
+        firsts = @_computeFirst rule.symbols
+        oldSize = rule.firsts.size
+        rule.firsts.clear()
+        firsts.forEach (item) => rule.firsts.add item
+        changed = true if rule.firsts.size > oldSize
+
+      for symbol, type of @types
+        oldSize = type.firsts.size
+        type.firsts.clear()
+        for rule in type.rules
+          rule.firsts.forEach (s) => type.firsts.add s
+        changed = true if type.firsts.size > oldSize
+
+  _computeFirst: (symbols) ->
+    return new Set if symbols is ''
+    return @_computeFirstOfSequence symbols if Array.isArray symbols
+    return new Set([symbols]) unless @types[symbols]
+    @types[symbols].firsts
+
+  _computeFirstOfSequence: (symbols) ->
+    firsts = new Set
+    for symbol in symbols
+      if @types[symbol]
+        @types[symbol].firsts.forEach (s) => firsts.add s
+      else
+        firsts.add symbol
+      break unless @_isNullable symbol
+    firsts
+
+  # Compute FOLLOW sets (tokens that can follow types)
+  _computeFollowSets!: ->
+    changed = true
+    while changed
+      changed = false
+
+      for rule in @rules
+        for symbol, i in rule.symbols when @types[symbol]
+          oldSize = @types[symbol].follows.size
+
+          if i is rule.symbols.length - 1
+            # Symbol at end: add FOLLOW(LHS)
+            @types[rule.type].follows.forEach (item) =>
+              @types[symbol].follows.add item
+          else
+            # Add FIRST(β) where β follows symbol
+            beta = rule.symbols[i + 1..]
+            firstSet = @_computeFirst beta
+
+            firstSet.forEach (item) => @types[symbol].follows.add item
+
+            # If β is nullable, also add FOLLOW(LHS)
+            if @_isNullable beta
+              @types[rule.type].follows.forEach (item) =>
+                @types[symbol].follows.add item
+
+          changed = true if @types[symbol].follows.size > oldSize
+
+  # Assign FOLLOW sets to reduction items
+  _assignItemLookaheads!: ->
+    for state in @states
+      for item from state.reductions
+        follows = @types[item.rule.type]?.follows
+        if follows
+          item.lookaheads.clear()
+          item.lookaheads.add token for token from follows
+
+  # ============================================================================
+  # Parse Table Generation
+  # ============================================================================
+
+  buildParseTable!: (itemSets = @states) ->
+    states = []
+    {types, operators} = this
+    [NONASSOC, SHIFT, REDUCE, ACCEPT] = [0, 1, 2, 3]
+
+    for itemSet, k in itemSets
+      state = states[k] = {}
+
+      # Shift and goto actions
+      for [stackSymbol, gotoState] from itemSet.transitions when @symbolIds[stackSymbol]?
+        if types[stackSymbol]
+          state[@symbolIds[stackSymbol]] = gotoState
+        else
+          state[@symbolIds[stackSymbol]] = [SHIFT, gotoState]
+
+      # Accept action
+      for item from itemSet.items when item.nextSymbol is "$end" and @symbolIds["$end"]?
+        state[@symbolIds["$end"]] = [ACCEPT]
+
+      # Reduce actions
+      for item from itemSet.reductions
+        for stackSymbol from item.lookaheads when @symbolIds[stackSymbol]?
+          action = state[@symbolIds[stackSymbol]]
+          op = operators[stackSymbol]
+
+          if action
+            # Resolve conflict
+            which = if action[0] instanceof Array then action[0] else action
+            solution = @_resolveConflict item.rule, op, [REDUCE, item.rule.id], which
+
+            if solution.bydefault
+              # Categorize conflict type
+              isEmpty = item.rule.symbols.length is 0 or (item.rule.symbols.length is 1 and item.rule.symbols[0] is '')
+              isPassthrough = item.rule.symbols.length is 1 and types[item.rule.symbols[0]]  # Single nonterminal
+              hasPrecedence = op and item.rule.precedence > 0
+              isReduceReduce = which[0] is REDUCE
+
+              # Determine category
+              category = 'empty-optional' if isEmpty
+              category = 'passthrough' if !isEmpty and isPassthrough
+              category = 'precedence' if !isEmpty and !isPassthrough and hasPrecedence
+              category = 'reduce-reduce' if !isEmpty and !isPassthrough and !hasPrecedence and isReduceReduce
+              category = 'ambiguous' if !isEmpty and !isPassthrough and !hasPrecedence and !isReduceReduce
+
+              # Only count and track problematic conflicts (exclude benign ones)
+              if category is 'reduce-reduce' or category is 'ambiguous'
+                @conflicts++
+                @conflictDetails.push {
+                  state: k,
+                  lookahead: stackSymbol,
+                  lookaheadName: @tokenNames[@symbolIds[stackSymbol]] or stackSymbol,
+                  rule: item.rule.id,
+                  ruleType: item.rule.type,
+                  ruleSymbols: item.rule.symbols.join(' '),
+                  shift: if which[0] is SHIFT then which[1] else null,
+                  reduce: item.rule.id,
+                  resolution: if which[0] is SHIFT then 'shift' else 'reduce',
+                  category: category
+                }
+            else
+              action = solution.action
+          else
+            action = [REDUCE, item.rule.id]
+
+          if action?.length
+            state[@symbolIds[stackSymbol]] = action
+          else if action is NONASSOC
+            state[@symbolIds[stackSymbol]] = undefined
+
+    @_computeDefaultActions @parseTable = states
+
+  # Resolve conflicts using precedence and associativity
+  _resolveConflict: (rule, op, reduce, shift) ->
+    solution = {rule, operator: op, r: reduce, s: shift}
+    [NONASSOC, SHIFT, REDUCE] = [0, 1, 2]
+
+    if shift[0] is REDUCE
+      solution.action = if shift[1] < reduce[1] then shift else reduce
+      solution.bydefault = true if shift[1] isnt reduce[1]
+      return solution
+
+    if rule.precedence is 0 or not op
+      solution.bydefault = true
+      solution.action = shift
+    else if rule.precedence < op.precedence
+      solution.action = shift
+    else if rule.precedence is op.precedence
+      solution.action = switch op.assoc
+        when "right" then shift
+        when "left" then reduce
+        when "nonassoc" then NONASSOC
+        else shift
+    else
+      solution.action = reduce
+
+    solution
+
+  # Compute default actions for single-action states
+  _computeDefaultActions!: (states) ->
+    defaults = {}
+    for state, k in states
+      actionCount = 0
+      lastAction = null
+
+      for own action of state
+        actionCount++
+        lastAction = state[action]
+
+      defaults[k] = lastAction if actionCount is 1 and lastAction[0] is 2
+
+    @defaultActions = defaults
+
+  # ============================================================================
+  # Code Generation
+  # ============================================================================
+
+  # ES6 Generator - Ultra-clean single purpose
+  generate: ->
+    if @options.recursiveDescent
+      @generateRecursiveDescent()
+    else
+      @_generateTableDriven()
+
+  # Table-driven parser (original behavior)
+  _generateTableDriven: ->
+    parserInstance = @_generateModuleCore()
+    pureHint = "/*#__PURE__*/"
+    """
+    // ES6 Parser generated by Solar #{VERSION}
+
+    const parserInstance = #{parserInstance}
+
+    function createParser(yyInit = {}) {
+      const p = Object.create(parserInstance);
+      Object.defineProperty(p, "yy", {
+        value: { ...yyInit },
+        enumerable: false,
+        writable: true,
+        configurable: true,
+      })
+      return p
+    }
+
+    const parser = #{pureHint}createParser()
+
+    export { parser }
+    export const Parser = createParser
+    export const parse = parser.parse.bind(parser)
+    export default parser
+    """
+
+  # ============================================================================
+  # Recursive Descent Parser Generator
+  # ============================================================================
+
+  generateRecursiveDescent: ->
+    # Generate predictive recursive descent parser
+    parseFunctions = []
+    debugInfo = {tail: 0, binary: 0, accessor: 0, dispatch: 0, switch: 0, failed: 0}
+
+    # Generate parse function for each nonterminal
+    for own typeName, type of @types
+      continue if typeName in ['$accept', '$end', 'error']
+
+      isTail = @_isTailRecursion(typeName, type.rules)
+      isBinary = @_isBinaryOp(typeName, type.rules)
+      isAccessor = @_isAccessorChain(typeName, type.rules)
+      isDispatch = !isTail and !isBinary and !isAccessor and @_isDispatchRule(type.rules)
+
+      if isTail
+        debugInfo.tail++
+      else if isBinary
+        debugInfo.binary++
+      else if isAccessor
+        debugInfo.accessor++
+      else if isDispatch
+        debugInfo.dispatch++
+      else
+        debugInfo.switch++
+
+      func = @_generateRDFunction(typeName, type)
+      if func
+        parseFunctions.push(func)
+      else
+        debugInfo.failed++
+        console.log "  Failed to generate: #{typeName} (#{type.rules.length} rules)"
+
+      # Debug for Operation specifically
+      if typeName is 'Operation'
+        console.log "  Operation: #{if func then 'Generated (' + func.length + ' chars)' else 'FAILED'}"
+
+    console.log "Generated #{parseFunctions.length} parse functions:"
+    console.log "  Tail: #{debugInfo.tail}, Binary: #{debugInfo.binary}, Accessor: #{debugInfo.accessor}, Dispatch: #{debugInfo.dispatch}, Switch: #{debugInfo.switch}, Failed: #{debugInfo.failed}"
+
+    # Combine into complete parser
+    '''
+    // Predictive Recursive Descent Parser generated by Solar ''' + VERSION + ''' (RD mode)
+
+    class Parser {
+      constructor() {
+        this.la = null;        // Current lookahead token
+        this.lexer = null;     // Lexer instance
+        this.yy = {};          // Shared state
+        this.depth = 0;        // Recursion depth tracking
+        this.maxDepth = 1000;  // Maximum recursion depth (prevent stack overflow)
+      }
+
+      // Initialize parser with input
+      parse(input) {
+        this.lexer = this._createLexer();
+        this.lexer.setInput(input, this.yy);
+        this.la = this._nextToken();
+        const result = this.parse''' + @start + '''();
+        if (this.la.kind !== '$end') {
+          this._error(['$end'], 'Expected end of input');
+        }
+        return result;
+      }
+
+      // Get next token from lexer
+      _nextToken() {
+        const tok = this.lexer.lex() || '$end';
+        const kind = typeof tok === 'number' ? this._tokenName(tok) : tok;
+        return {
+          kind: kind,
+          value: this.lexer.yytext,
+          line: this.lexer.yylineno,
+          column: this.lexer.yylloc?.first_column || 0
+        };
+      }
+
+      // Match expected token and advance
+      _match(kind) {
+        if (this.la.kind !== kind) {
+          this._error([kind], `Expected ${kind}`);
+        }
+        const tok = this.la;
+        this.la = this._nextToken();
+        // Return the SAVED token's value, not current lexer value!
+        // tok.value is the matched token's value BEFORE advancing
+        return tok.value;
+      }
+
+      // Check if current token is in set
+      _check(...kinds) {
+        return kinds.includes(this.la.kind);
+      }
+
+      // Error handling
+      _error(expected, msg) {
+        const line = this.la.line + 1;
+        const col = this.la.column;
+        const token = this.la.kind;
+        throw new Error(
+          `Parse error at line ${line}, column ${col}: ${msg}\\n` +
+          `Got '${token}', expected one of: ${expected.join(', ')}`
+        );
+      }
+
+      // Token name lookup
+      _tokenName(id) {
+        const names = ''' + JSON.stringify(@tokenNames) + ''';
+        return names[id] || id;
+      }
+
+      // Create lexer (stub - override with actual lexer)
+      _createLexer() {
+        if (this.lexer) return this.lexer;
+        throw new Error('No lexer provided. Set parser.lexer before calling parse()');
+      }
+
+      // ========================================================================
+      // Parse Functions (one per nonterminal)
+      // ========================================================================
+
+    ''' + parseFunctions.join('\n\n') + '''
+    }
+
+    const parser = new Parser();
+
+    export { parser, Parser };
+    export const parse = parser.parse.bind(parser);
+    export default parser;
+    '''
+
+  # Generate parse function for a nonterminal
+  _generateRDFunction: (typeName, type) ->
+    rules = type.rules
+    return null unless rules?.length
+
+    # Pattern recognition
+    try
+      func = null
+      # Special cases that need custom handling
+      if typeName is 'Root'
+        func = @_generateRootSpecial(rules)
+      else if typeName is 'For'
+        func = @_generateForSpecial(rules)
+      else if typeName is 'Def'
+        func = @_generateDefSpecial(rules)
+      else if typeName is 'Block'
+        func = @_generateBlockSpecial(rules)
+      else if typeName is 'If'
+        func = @_generateIfSpecial(rules)
+      else if typeName is 'Assign'
+        func = @_generateAssignSpecial(rules)
+      else if typeName is 'Assignable'
+        func = @_generateAssignableSpecial(rules)
+      else if typeName is 'Value'
+        func = @_generateValueSpecial(rules)
+      else if typeName is 'ArgList'
+        func = @_generateArgListSpecial(rules)
+      else if typeName is 'ArgElisionList'
+        func = @_generateArgElisionListSpecial(rules)
+      else if typeName is 'Array'
+        func = @_generateArraySpecial(rules)
+      else if typeName is 'Object'
+        func = @_generateObjectSpecial(rules)
+      else if typeName is 'AssignList'
+        func = @_generateAssignListSpecial(rules)
+      else if typeName is 'AssignObj'
+        func = @_generateAssignObjSpecial(rules)
+      else if typeName.endsWith('Tail') and rules.length is 3
+        # Special handling for *Tail recursion patterns with 3 rules
+        # (separator+element+tail, separator+tail, epsilon)
+        func = @_generateTailSpecial(typeName, rules)
+      else if @_isTailRecursion(typeName, rules)
+        func = @_generateListLoop(typeName, rules)
+      else if @_isBinaryOp(typeName, rules)
+        func = @_generateBinaryOpLoop(typeName, rules)
+      else if typeName is 'Operation'
+        # Force Operation to use iterative handler
+        func = @_generateOperationIterative(typeName, rules)
+      else if @_isAccessorChain(typeName, rules)
+        func = @_generateAccessorLoop(typeName, rules)
+      else if @_isDispatchRule(rules)
+        func = @_generateSmartDispatch(typeName, rules)
+      else
+        func = @_generateSwitchDispatch(typeName, rules)
+
+      # Wrap with recursion depth tracking (but not for special handlers that already have structure)
+      if func
+        # Special handlers shouldn't be wrapped as they have custom logic
+        specialHandlers = ['Root', 'For', 'Def', 'Block', 'If', 'Assign', 'Assignable', 'Value', 'ArgList', 'ArgElisionList', 'Array', 'Object', 'AssignList', 'AssignObj']
+        isSpecial = (specialHandlers.indexOf(typeName) >= 0) or typeName.endsWith('Tail')
+        if isSpecial
+          # console.log "NOT wrapping #{typeName} (special handler)"
+          return func
+        else
+          # console.log "Wrapping #{typeName} with depth tracking"
+          return @_wrapWithDepthTracking(typeName, func)
+      return func
+    catch error
+      console.error "Error generating #{typeName}:", error.message
+      return null
+
+  # Check if this is a dispatch rule (multiple single-nonterminal alternatives)
+  _isDispatchRule: (rules) ->
+    # Pattern: A → B | C | D where B, C, D are nonterminals with non-overlapping FIRST sets
+    # Example: Value → Assignable | Literal | Range | ...
+    return false unless rules.length > 2
+
+    # Check if most rules are single-nonterminal pass-throughs
+    passThrough = 0
+    for rule in rules
+      if rule.symbols.length is 1 and @types[rule.symbols[0]]
+        passThrough++
+
+    # If 50%+ are pass-through, it's a dispatch rule
+    return passThrough >= rules.length * 0.5
+
+  # Check if rule follows tail recursion pattern
+  _isTailRecursion: (typeName, rules) ->
+    # Pattern: A → elem ATail where ATail ends with "Tail"
+    return false unless rules.length is 1
+    rule = rules[0]
+    return false unless rule.symbols.length >= 2
+    lastSymbol = rule.symbols[rule.symbols.length - 1]
+    return lastSymbol.endsWith?('Tail')
+
+  # Check if rule is binary operator pattern
+  _isBinaryOp: (typeName, rules) ->
+    # Pattern: A → B | A op B (left-recursive binary op)
+    return false unless rules.length is 2
+    [base, recursive] = rules
+    return false unless recursive.symbols.length is 3
+    return false unless recursive.symbols[0] is typeName
+    return true
+
+  # Check if rule is accessor chain pattern
+  _isAccessorChain: (typeName, rules) ->
+    # Pattern: Multiple left-recursive rules for accessors like:
+    # SimpleAssignable → Identifier | Value . Property | Value [ Expr ] | ...
+    # These create chains through intermediate types that cycle back
+    return false unless rules.length > 5
+
+    # Check if many rules start with DIFFERENT nonterminals that might cycle
+    # Key insight: Accessors call through OTHER types, not dispatch to alternatives
+    nonterminalFirsts = new Set
+    for rule in rules
+      first = rule.symbols[0]
+      if first and @types[first]
+        nonterminalFirsts.add(first)
+
+    # Accessor pattern: Many rules starting with the SAME intermediate type (like "Value")
+    # Dispatch pattern: Rules starting with DIFFERENT types (like "Value", "Code", "Operation")
+    # If there are 2-3 dominant nonterminals that most rules use, it's likely accessors
+    # If there are many different nonterminals (one per rule), it's dispatch
+
+    # Count how many rules use each nonterminal
+    nonterminalCounts = new Map
+    for rule in rules
+      first = rule.symbols[0]
+      if first and @types[first]
+        count = nonterminalCounts.get(first) || 0
+        nonterminalCounts.set(first, count + 1)
+
+    # If one nonterminal is used by many rules, it's accessor chaining
+    # (like SimpleAssignable → Value . X | Value [ Y ] | Value :: Z)
+    maxCount = 0
+    for count from nonterminalCounts.values()
+      maxCount = Math.max(maxCount, count)
+
+    # If one type appears in 40%+ of rules, it's accessor chaining
+    return maxCount > rules.length * 0.4
+
+  # Generate accessor chain loop (for complex left-recursive accessor patterns)
+  _generateAccessorLoop: (typeName, rules) ->
+    # FULL IMPLEMENTATION: Iterative loops for accessor chains
+
+    # Separate base cases from left-recursive patterns
+    baseRules = []
+    leftRecursiveRules = []
+
+    for rule in rules
+      first = rule.symbols[0]
+
+      # Left-recursive if first symbol is same type
+      if first is typeName
+        leftRecursiveRules.push(rule)
+      else
+        baseRules.push(rule)
+
+    # Special handling for Operation (binary operators)
+    if typeName is 'Operation'
+      return @_generateOperationIterative(typeName, rules)
+
+    # Special handling for SimpleAssignable (property/index accessors)
+    # Force it - SimpleAssignable has indirect recursion through Value
+    if typeName is 'SimpleAssignable'
+      return @_generateSimpleAssignableIterative(typeName, rules)
+
+    # For other accessor types, generate base case switch
+    if baseRules.length > 0
+      return @_generateSwitchDispatch(typeName, baseRules) + '''
+    // NOTE: Simplified - omitted ''' + leftRecursiveRules.length + ''' accessor patterns
+'''
+
+    # Fallback
+    return @_generateSwitchDispatch(typeName, rules)
+
+  # Generate Operation with full iterative binary operator loop
+  _generateOperationIterative: (typeName, allRules) ->
+    # For Operation, binary rules have pattern: Value OP Value (or Expression OP Expression or PrimaryExpression OP PrimaryExpression)
+    actualBinaryRules = []
+    actualBaseRules = []
+
+    for rule in allRules
+      # Binary operator pattern: detect 3-symbol rules with operand-operator-operand structure
+      if rule.symbols.length is 3 and
+         ((rule.symbols[0] is 'Value') or (rule.symbols[0] is 'Expression') or (rule.symbols[0] is 'PrimaryExpression') or (rule.symbols[0] is 'SimpleAssignable')) and
+         ((rule.symbols[2] is 'Value') or (rule.symbols[2] is 'Expression') or (rule.symbols[2] is 'PrimaryExpression'))
+        actualBinaryRules.push(rule)
+      else
+        actualBaseRules.push(rule)
+
+    # If no binary rules found, just use regular switch
+    if actualBinaryRules.length is 0
+      return @_generateSwitchDispatch(typeName, allRules)
+
+    # Generate base case dispatch
+    # Group rules by FIRST tokens to avoid duplicates
+    tokenToRule = new Map
+
+    for rule in actualBaseRules
+      firsts = @_computeFirst(rule.symbols)
+      for token from firsts when token isnt ''
+        # Pick the best rule for this token (prefer more specific rules)
+        if not tokenToRule.has(token)
+          tokenToRule.set(token, rule)
+        # Could add heuristics here to pick better rule
+
+    baseCases = []
+    for [token, rule] from tokenToRule
+      baseCases.push "    case '#{token}':"
+      parseCode = @_generateParseCode(rule)
+      baseCases.push "      {"
+      baseCases.push "      #{parseCode.replace('return ', 'left = ')};"
+      baseCases.push "      break;"
+      baseCases.push "      }"
+
+    # Check for postfix operators too (SimpleAssignable ++, SimpleAssignable --)
+    postfixRules = []
+    for rule in allRules when rule.symbols.length is 2
+      # Pattern: SimpleAssignable ++ or SimpleAssignable --
+      if rule.symbols[0] is 'SimpleAssignable' and (rule.symbols[1] is '++' or rule.symbols[1] is '--')
+        postfixRules.push(rule)
+
+    # Collect binary operators and their actions
+    opCases = []
+    for rule in actualBinaryRules
+      op = rule.symbols[1]
+      action = @_getRDAction(rule, ["left", "op", "right"])
+
+      opCases.push "      case '#{op}': {"
+      # Capture operator value for variable tokens (MATH, SHIFT, COMPARE, RELATION, COMPOUND_ASSIGN)
+      if op is 'MATH' or op is 'SHIFT' or op is 'COMPARE' or op is 'RELATION' or op is 'COMPOUND_ASSIGN'
+        opCases.push "        const op = this._match('#{op}');"  # Capture the actual operator
+        # Assignment and COMPOUND_ASSIGN need full Expression (right-associative)
+        if op is '=' or op is 'COMPOUND_ASSIGN'
+          opCases.push "        const right = this.parseExpression();"  # Full expression for assignment
+        else
+          opCases.push "        const right = this.parseValue();"  # Use Value for other ops
+        opCases.push "        const [$$1, $$2, $$3] = [left, op, right];"  # Use captured op
+      else
+        opCases.push "        this._match('#{op}');"
+        # Assignment and COMPOUND_ASSIGN need full Expression (right-associative)
+        if op is '=' or op is 'COMPOUND_ASSIGN'
+          opCases.push "        const right = this.parseExpression();"  # Full expression for assignment
+        else
+          opCases.push "        const right = this.parseValue();"  # Use Value for other ops
+        opCases.push "        const [$$1, $$2, $$3] = [left, '#{op}', right];"
+      opCases.push "        left = #{action.replace('return ', '').replace(/;$/, '')};"
+      opCases.push "        break;"
+      opCases.push "      }"
+
+    # Add postfix operators
+    for rule in postfixRules
+      op = rule.symbols[1]
+      action = @_getRDAction(rule, ["left", "op"])
+      opCases.push "      case '#{op}': {"
+      opCases.push "        this._match('#{op}');"
+      opCases.push "        const [$$1, $$2] = [left, '#{op}'];"
+      opCases.push "        left = #{action.replace('return ', '').replace(/;$/, '')};"
+      opCases.push "        break;"
+      opCases.push "      }"
+
+    allFirsts = new Set
+    for rule in actualBaseRules
+      firsts = @_computeFirst(rule.symbols)
+      firsts.forEach (t) => allFirsts.add(t) if t isnt ''
+    expected = Array.from(allFirsts).map((t) -> "'#{t}'").join(', ')
+
+    '''
+  parse''' + typeName + '''() {
+    // Binary operator iteration (FULL IMPLEMENTATION!)
+    let left;
+
+    // Parse base expression
+    switch (this.la.kind) {
+''' + baseCases.join('\n') + '''
+      default:
+        this._error([''' + expected + '''], "Invalid ''' + typeName + '''");
+    }
+
+    // Iterate through binary operators
+    while (true) {
+      switch (this.la.kind) {
+''' + opCases.join('\n') + '''
+        default:
+          return left;
+      }
+    }
+  }
+'''
+
+  # Generate SimpleAssignable with full iterative accessor loop
+  _generateSimpleAssignableIterative: (typeName, rules) ->
+    # Separate base cases from Value-based accessors
+    baseRules = []
+    accessorRules = []
+
+    for rule in rules
+      first = rule.symbols[0]
+
+      # Base cases: Identifier, ThisProperty, or terminals
+      if first in ['Identifier', 'ThisProperty'] or (first and not @types[first])
+        baseRules.push(rule)
+      # Accessor patterns: Value . Property, Value :: Property, etc.
+      else if first is 'Value' or first is 'Code'
+        accessorRules.push(rule)
+      else
+        baseRules.push(rule)
+
+    # Generate base case switch
+    baseCases = []
+    for rule in baseRules
+      firsts = @_computeFirst(rule.symbols)
+      for token from firsts when token isnt ''
+        baseCases.push "    case '#{token}':"
+
+      parseCode = @_generateParseCode(rule)
+      baseCases.push "      {"
+      baseCases.push "      #{parseCode.replace('return ', 'base = ')};"
+      baseCases.push "      break;"
+      baseCases.push "      }"
+
+    # Generate accessor cases
+    accessorCases = []
+    seenAccessors = new Set
+
+    for rule in accessorRules when rule.symbols.length >= 2
+      accessor = rule.symbols[1]
+      continue if seenAccessors.has(accessor)
+      seenAccessors.add(accessor)
+
+      # Get remaining symbols after accessor
+      remaining = rule.symbols[2...]
+      action = @_getRDAction(rule, ["base", "accessor", "value"])
+
+      switch accessor
+        when '.'
+          accessorCases.push "      case '.':"
+          accessorCases.push "        this._match('.');"
+          accessorCases.push "        const prop = this.parseProperty();"
+          accessorCases.push "        base = ['.', base, prop];"
+          accessorCases.push "        break;"
+
+        when '?.'
+          accessorCases.push "      case '?.':"
+          accessorCases.push "        this._match('?.');"
+          accessorCases.push "        const optProp = this.parseProperty();"
+          accessorCases.push "        base = ['?.', base, optProp];"
+          accessorCases.push "        break;"
+
+        when '::'
+          accessorCases.push "      case '::':"
+          accessorCases.push "        this._match('::');"
+          accessorCases.push "        if (this.la.kind === 'PROPERTY') {"
+          accessorCases.push "          const protoProp = this.parseProperty();"
+          accessorCases.push "          base = ['::', base, protoProp];"
+          accessorCases.push "        } else {"
+          accessorCases.push "          base = ['::', base, 'prototype'];"
+          accessorCases.push "        }"
+          accessorCases.push "        break;"
+
+        when '?::'
+          accessorCases.push "      case '?::':"
+          accessorCases.push "        this._match('?::');"
+          accessorCases.push "        if (this.la.kind === 'PROPERTY') {"
+          accessorCases.push "          const optProtoProp = this.parseProperty();"
+          accessorCases.push "          base = ['?::', base, optProtoProp];"
+          accessorCases.push "        } else {"
+          accessorCases.push "          base = ['?::', base, 'prototype'];"
+          accessorCases.push "        }"
+          accessorCases.push "        break;"
+
+        when 'INDEX_START'
+          accessorCases.push "      case 'INDEX_START':"
+          accessorCases.push "        this._match('INDEX_START');"
+          accessorCases.push "        // Check for slice vs simple index"
+          accessorCases.push "        if (this.la.kind === '..' || this.la.kind === '...') {"
+          accessorCases.push "          // Slice without start: [..3] or [...3]"
+          accessorCases.push "          const slice = this.parseSlice();"
+          accessorCases.push "          this._match('INDEX_END');"
+          accessorCases.push "          base = ['[]', base, slice];"
+          accessorCases.push "        } else {"
+          accessorCases.push "          const index = this.parseExpression();"
+          accessorCases.push "          // Check if it's a slice: [1..3] or [1...3]"
+          accessorCases.push "          if (this.la.kind === '..' || this.la.kind === '...') {"
+          accessorCases.push "            // It's a slice! Parse as Slice"
+          accessorCases.push "            const dots = this.parseRangeDots();"
+          accessorCases.push "            let endExpr = null;"
+          accessorCases.push "            if (this.la.kind !== 'INDEX_END') {"
+          accessorCases.push "              endExpr = this.parseExpression();"
+          accessorCases.push "            }"
+          accessorCases.push "            this._match('INDEX_END');"
+          accessorCases.push "            base = ['[]', base, [dots, index, endExpr]];"
+          accessorCases.push "          } else {"
+          accessorCases.push "            // Simple index"
+          accessorCases.push "            this._match('INDEX_END');"
+          accessorCases.push "            base = ['[]', base, index];"
+          accessorCases.push "          }"
+          accessorCases.push "        }"
+          accessorCases.push "        break;"
+
+        when 'INDEX_SOAK'
+          accessorCases.push "      case 'INDEX_SOAK':"
+          accessorCases.push "        this._match('INDEX_SOAK');"
+          accessorCases.push "        this._match('INDEX_START');"
+          accessorCases.push "        const soakIndex = this.parseExpression();"
+          accessorCases.push "        this._match('INDEX_END');"
+          accessorCases.push "        base = ['?[]', base, soakIndex];"
+          accessorCases.push "        break;"
+
+    allFirsts = new Set
+    for rule in baseRules
+      firsts = @_computeFirst(rule.symbols)
+      firsts.forEach (t) => allFirsts.add(t) if t isnt ''
+    expected = Array.from(allFirsts).map((t) -> "'#{t}'").join(', ')
+
+    '''
+  parseSimpleAssignable() {
+    // Accessor chain with full iterative loop
+    let base;
+
+    // Parse base case
+    switch (this.la.kind) {
+''' + baseCases.join('\n') + '''
+      default:
+        this._error([''' + expected + '''], "Invalid SimpleAssignable");
+    }
+
+    // Iterate through accessors
+    while (true) {
+      switch (this.la.kind) {
+''' + accessorCases.join('\n') + '''
+        default:
+          return base;
+      }
+    }
+  }
+'''
+
+  # Generate list-building loop (for tail recursion patterns)
+  _generateListLoop: (typeName, rules) ->
+    rule = rules[0]
+    element = rule.symbols[0]
+    tailName = rule.symbols[rule.symbols.length - 1]
+
+    # For tail patterns, manually construct the action
+    # Pattern: Body → Line BodyTail with action [1, ...2]
+    # Should become: const $$1 = parseLine(); const $$2 = parseBodyTail(); return [$$1, ...$$2];
+    resultVars = []
+    for symbol, i in rule.symbols when symbol isnt ''
+      resultVars.push "$$#{i + 1}"
+
+    action = @_getRDAction(rule, resultVars)
+
+    '''
+  parse''' + typeName + '''() {
+    // List pattern: ''' + typeName + ''' → ''' + element + ''' ''' + tailName + '''\n    const $$1 = this.parse''' + element + '''();
+    const $$2 = this.parse''' + tailName + '''();
+    ''' + action + '''
+  }
+'''
+
+  # Generate binary operator loop (for expression operators)
+  _generateBinaryOpLoop: (typeName, rules) ->
+    [base, recursive] = rules
+    lowerType = base.symbols[0]
+    operator = recursive.symbols[1]
+    action = @_getRDAction(recursive)
+
+    '''
+  parse''' + typeName + '''() {
+    // Binary operator: ''' + typeName + ''' → ''' + lowerType + ''' | ''' + typeName + ''' ''' + operator + ''' ''' + lowerType + '''
+    let left = this.parse''' + lowerType + '''();
+    while (this.la.kind === "''' + operator + '''") {
+      this._match("''' + operator + '''");
+      const right = this.parse''' + lowerType + '''();
+      const [$$1, $$2, $$3] = [left, null, right];
+      left = ''' + action.replace('return ', '').replace(/;$/, '') + ''';
+    }
+    return left;
+  }
+'''
+
+  # Generate switch dispatch (for rules with multiple productions)
+  _generateSwitchDispatch: (typeName, rules) ->
+    # Special cases with shared prefix that need lookahead
+    if typeName is 'Def'
+      return @_generateDefSpecial(rules)
+    if typeName is 'Block'
+      return @_generateBlockSpecial(rules)
+    if typeName is 'If'
+      return @_generateIfSpecial(rules)
+
+    # Special case: single rule - no switch needed
+    if rules.length is 1
+      rule = rules[0]
+      parseCode = @_generateParseCode(rule)
+      return '''
+  parse''' + typeName + '''() {
+    ''' + parseCode + '''
+  }
+'''
+
+    # Group productions by their FIRST sets to avoid duplicates
+    productionsByFirst = new Map
+    epsilonRules = []
+
+    for rule in rules
+      firsts = @_computeFirst(rule.symbols)
+      isEpsilon = rule.symbols.length is 0 or (rule.symbols.length is 1 and rule.symbols[0] is '')
+
+      if isEpsilon
+        epsilonRules.push rule
+        continue
+
+      # For each FIRST token, record this production
+      for token from firsts when token isnt ''
+        if not productionsByFirst.has(token)
+          productionsByFirst.set(token, [])
+        productionsByFirst.get(token).push(rule)
+
+    # Generate switch cases
+    cases = []
+
+    for [token, productions] from productionsByFirst
+      cases.push "    case '#{token}':"
+
+      if productions.length is 1
+        # Single production for this token - generate directly
+        parseCode = @_generateParseCode(productions[0])
+        cases.push "      {"
+        cases.push "      #{parseCode}"
+        cases.push "      }"
+      else
+        # Multiple productions with same FIRST token
+        # Pick best production using heuristics:
+        # 1. Prefer productions whose first symbol has THIS token in its FIRST set directly
+        # 2. Prefer shorter productions (more specific)
+        # 3. Prefer earlier in grammar (grammar order matters)
+
+        bestProd = productions[0]
+        bestScore = -1
+
+        for prod in productions
+          score = 0
+          first = prod.symbols[0]
+
+          # If first symbol is terminal and matches token, highest priority
+          if first is token and not @types[first]
+            score += 1000
+          # If first symbol's FIRST set directly contains token (not through recursion)
+          else if @types[first]
+            typeFirsts = @types[first].firsts
+            if typeFirsts.has(token)
+              # Check if it's a "pass-through" type (single rule that just returns another type)
+              if @types[first].rules.length is 1
+                score += 1  # Low score for pass-through
+              else
+                score += 100  # Higher score for actual dispatch
+
+          # Prefer shorter productions
+          score += 10 / prod.symbols.length
+
+          if score > bestScore
+            bestScore = score
+            bestProd = prod
+
+        parseCode = @_generateParseCode(bestProd)
+        cases.push "      {"
+        cases.push "      #{parseCode}"
+        cases.push "      }"
+
+    # Handle epsilon/default case
+    if epsilonRules.length > 0
+      # Use epsilon production as default
+      epsilonRule = epsilonRules[0]
+      parseCode = @_generateParseCode(epsilonRule)
+
+      # Special case: Root should prefer Body over epsilon
+      if typeName is 'Root'
+        # Never take epsilon unless at EOF
+        # If we have any tokens, parse Body
+        bodyRule = rules.find (r) => r.symbols[0] is 'Body'
+        if bodyRule
+          bodyCode = @_generateParseCode(bodyRule)
+          defaultCode = """
+        // Root: prefer Body over ε unless at EOF
+        if (this.la.kind !== '$end') {
+          #{bodyCode}
+        }
+        // ε production (empty program)
+        #{parseCode}"""
+        else
+          defaultCode = "      // ε production\n      #{parseCode}"
+      else
+        defaultCode = "      // ε production\n      #{parseCode}"
+    else
+      # No epsilon - error on unexpected token
+      allTokens = Array.from(productionsByFirst.keys()).map((t) -> "'#{t}'")
+      expected = allTokens.join(', ')
+      defaultCode = "      this._error([#{expected}], \"Invalid #{typeName}\");"
+
+    '''
+  parse''' + typeName + '''() {
+    switch (this.la.kind) {
+''' + cases.join('\n') + '''
+      default:
+''' + defaultCode + '''
+    }
+  }
+'''
+
+  # Generate parsing code for a production
+  _generateParseCode: (rule) ->
+    parts = []
+    resultVars = []
+
+    for symbol, i in rule.symbols when symbol isnt ''
+      varName = "$$#{i + 1}"
+
+      if @types[symbol]
+        # Nonterminal - call parse function
+        parts.push "const #{varName} = this.parse#{symbol}();"
+      else
+        # Terminal - match token
+        parts.push "const #{varName} = this._match('#{symbol}');"
+
+      resultVars.push varName
+
+    # Generate action
+    action = @_getRDAction(rule, resultVars)
+    parts.push action
+
+    parts.join('\n      ')
+
+  # Special handling for Root (epsilon vs Body)
+  _generateRootSpecial: (rules) ->
+    # Root has two rules:
+    # 1. '' -> ["program"]
+    # 2. Body -> ["program", ...1]
+    # Don't need to dispatch on all FIRST tokens - just check if we're at EOF or not
+    '''
+  parseRoot() {
+    // Root: prefer Body over ε unless at EOF
+    if (this.la.kind !== '$end') {
+      const $$1 = this.parseBody();
+      return ["program", ...$$1];
+    }
+    // ε production (empty program)
+    return ["program"];
+  }
+'''
+
+  # Special handling for For loops (many variants, complex disambiguation)
+  _generateForSpecial: (rules) ->
+    # For has 13 rules with different patterns:
+    # - FOR ForVariables FORIN/FOROF/FORFROM Expression ...
+    # - FOR Range Block
+    # - Expression FOR Range (comprehensions)
+    # Need to check what follows FOR to disambiguate
+    '''
+  parseFor() {
+    // Check if it starts with FOR keyword
+    if (this.la.kind === 'FOR') {
+      this._match('FOR');
+
+      // Check for AWAIT (FOR AWAIT ForVariables FORFROM...)
+      let hasAwait = false;
+      if (this.la.kind === 'AWAIT') {
+        this._match('AWAIT');
+        hasAwait = true;
+      }
+
+      // Check for OWN (FOR OWN ForVariables FOROF...)
+      let hasOwn = false;
+      if (this.la.kind === 'OWN') {
+        this._match('OWN');
+        hasOwn = true;
+      }
+
+      // Check what comes next: ForVariables or Range
+      if (this.la.kind === '[') {
+        // FOR Range Block (simple range-based loop)
+        const range = this.parseRange();
+
+        // Optional BY
+        let byExpr = null;
+        if (this.la.kind === 'BY') {
+          this._match('BY');
+          byExpr = this.parseExpression();
+        }
+
+        const block = this.parseBlock();
+        return ["for-in", [], range, byExpr, null, block];
+      } else {
+        // FOR ForVariables FORIN/FOROF/FORFROM Expression
+        const vars = this.parseForVariables();
+
+        // Check loop type
+        if (this.la.kind === 'FORIN') {
+          this._match('FORIN');
+          const expr = this.parseExpression();
+
+          // Optional BY
+          let byExpr = null;
+          if (this.la.kind === 'BY') {
+            this._match('BY');
+            byExpr = this.parseExpression();
+          }
+
+          // Optional WHEN
+          let whenExpr = null;
+          if (this.la.kind === 'WHEN') {
+            this._match('WHEN');
+            whenExpr = this.parseExpression();
+          }
+
+          const block = this.parseBlock();
+          return ["for-in", vars, expr, byExpr, whenExpr, block];
+        } else if (this.la.kind === 'FOROF') {
+          this._match('FOROF');
+          const expr = this.parseExpression();
+
+          // Optional WHEN
+          let whenExpr = null;
+          if (this.la.kind === 'WHEN') {
+            this._match('WHEN');
+            whenExpr = this.parseExpression();
+          }
+
+          const block = this.parseBlock();
+          return ["for-of", vars, expr, hasOwn, whenExpr, block];
+        } else if (this.la.kind === 'FORFROM') {
+          this._match('FORFROM');
+          const expr = this.parseExpression();
+
+          // Optional WHEN
+          let whenExpr = null;
+          if (this.la.kind === 'WHEN') {
+            this._match('WHEN');
+            whenExpr = this.parseExpression();
+          }
+
+          const block = this.parseBlock();
+          return ["for-from", vars, expr, hasAwait, whenExpr, block];
+        } else {
+          this._error(['FORIN', 'FOROF', 'FORFROM'], "Expected for loop type");
+        }
+      }
+    } else {
+      // Comprehension form: Expression FOR Range
+      const expr = this.parseExpression();
+      this._match('FOR');
+      const range = this.parseRange();
+      return ["comprehension", expr, [["for-in", [], range, null]], []];
+    }
+  }
+'''
+
+  # Special handling for Def (shared prefix, needs lookahead)
+  _generateDefSpecial: (rules) ->
+    # Def has two rules:
+    # 1. DEF Identifier CALL_START ParamList CALL_END Block -> ["def", 2, 4, 6]
+    # 2. DEF Identifier Block -> ["def", 2, [], 3]
+    # Both share "DEF Identifier" prefix
+    '''
+  parseDef() {
+    // Parse common prefix
+    const $$1 = this._match('DEF');
+    const $$2 = this.parseIdentifier();
+
+    // Lookahead to decide which alternative
+    if (this.la.kind === 'CALL_START') {
+      // With params: DEF Identifier CALL_START ParamList CALL_END Block
+      const $$3 = this._match('CALL_START');
+      const $$4 = this.parseParamList();
+      const $$5 = this._match('CALL_END');
+      const $$6 = this.parseBlock();
+      return ["def", $$2, $$4, $$6];
+    } else {
+      // No params: DEF Identifier Block
+      const $$3 = this.parseBlock();
+      return ["def", $$2, [], $$3];
+    }
+  }
+'''
+
+  # Special handling for Block (shared prefix, needs lookahead)
+  _generateBlockSpecial: (rules) ->
+    # Block has two rules:
+    # 1. INDENT OUTDENT -> ["block"]
+    # 2. INDENT Body OUTDENT -> ["block", ...2]
+    # Both start with INDENT
+    '''
+  parseBlock() {
+    // Parse INDENT
+    const $$1 = this._match('INDENT');
+
+    // Lookahead to decide which alternative
+    if (this.la.kind === 'OUTDENT') {
+      // Empty block: INDENT OUTDENT
+      const $$2 = this._match('OUTDENT');
+      return ["block"];
+    } else {
+      // Block with body: INDENT Body OUTDENT
+      const $$2 = this.parseBody();
+      const $$3 = this._match('OUTDENT');
+      return ["block", ...$$2];
+    }
+  }
+'''
+
+  # Special handling for If (optional ELSE continuation)
+  _generateIfSpecial: (rules) ->
+    # If has three rules:
+    # 1. IfBlock
+    # 2. IfBlock ELSE Block
+    # 3. UnlessBlock
+    '''
+  parseIf() {
+    // Parse IfBlock or UnlessBlock
+    let result;
+    if (this.la.kind === 'IF') {
+      result = this.parseIfBlock();
+    } else if (this.la.kind === 'UNLESS') {
+      result = this.parseUnlessBlock();
+    } else {
+      this._error(['IF', 'UNLESS'], "Invalid If");
+    }
+
+    // Check for ELSE continuation
+    if (this.la.kind === 'ELSE') {
+      this._match('ELSE');
+      const elseBlock = this.parseBlock();
+      // Append else block to if: result.length === 3 ? ["if", result[1], result[2], elseBlock] : [...result, elseBlock]
+      if (result.length === 3) {
+        return ["if", result[1], result[2], elseBlock];
+      } else {
+        return [...result, elseBlock];
+      }
+    }
+
+    return result;
+  }
+'''
+
+  # Special handling for Assign (shared prefix with Operation)
+  _generateAssignSpecial: (rules) ->
+    # Assign has three rules with common prefix "Assignable ="
+    # Need to parse Assignable, check for =, then parse Expression
+    '''
+  parseAssign() {
+    // Parse Assignable
+    const lhs = this.parseAssignable();
+
+    // Match = token
+    this._match('=');
+
+    // Check for optional TERMINATOR or INDENT
+    if (this.la.kind === 'TERMINATOR') {
+      this._match('TERMINATOR');
+      const rhs = this.parseExpression();
+      return ["=", lhs, rhs];
+    } else if (this.la.kind === 'INDENT') {
+      this._match('INDENT');
+      const rhs = this.parseExpression();
+      this._match('OUTDENT');
+      return ["=", lhs, rhs];
+    } else {
+      // Simple assignment: Assignable = Expression
+      const rhs = this.parseExpression();
+      return ["=", lhs, rhs];
+    }
+  }
+'''
+
+  # Special handling for Assignable (dispatch to correct alternative)
+  _generateAssignableSpecial: (rules) ->
+    # Assignable has three alternatives:
+    # - SimpleAssignable (IDENTIFIER, @)
+    # - Array ([)
+    # - Object ({)
+    '''
+  parseAssignable() {
+    switch (this.la.kind) {
+      case 'IDENTIFIER':
+      case '@':
+        return this.parseSimpleAssignable();
+      case '[':
+        return this.parseArray();
+      case '{':
+        return this.parseObject();
+      default:
+        this._error(['IDENTIFIER', '@', '[', '{'], "Invalid Assignable");
+    }
+  }
+'''
+
+  # Special handling for Value (check for function calls after base)
+  _generateValueSpecial: (rules) ->
+    # Value has: Assignable | Literal | Parenthetical | Range | Invocation | ...
+    # Invocation starts with Assignable too, so we need to check for CALL_START after
+    # Also needs accessor handling for: arr[0], obj.prop, [1,2,3].length, etc.
+    '''
+  parseValue() {
+    // Parse base value
+    let base;
+    switch (this.la.kind) {
+      case 'IDENTIFIER':
+      case '{':
+      case 'SUPER':
+      case 'DYNAMIC_IMPORT':
+      case 'DO_IIFE':
+        base = this.parseAssignable();
+        break;
+      case '@':
+        // Bare @ alone means "this", but @ followed by more is @property
+        this._match('@');
+        if (this.la.kind === 'PROPERTY') {
+          // @property - parse as this.property
+          const prop = this.parseProperty();
+          base = ['.', 'this', prop];
+        } else {
+          // Bare @ means "this"
+          base = "this";
+        }
+        break;
+      case 'THIS':
+        // THIS keyword maps to "this"
+        this._match('THIS');
+        base = "this";
+        break;
+      case 'NEW_TARGET':
+      case 'IMPORT_META':
+        base = this.parseMetaProperty();
+        break;
+      case '[':
+        // Could be Array or Range - try Range first (it's more specific)
+        // Range: [ Expression .. Expression ]
+        // Array: [ ... ]
+        // We need to lookahead to distinguish, but for now just try Array
+        // (Range will be handled if Array sees .. or ...)
+        base = this.parseAssignable();
+        break;
+      case '(':
+        // Could be Parenthetical or Assignable with paren
+        base = this.parseParenthetical();
+        break;
+      case 'NUMBER':
+      case 'STRING':
+      case 'STRING_START':
+      case 'JS':
+      case 'UNDEFINED':
+      case 'NULL':
+      case 'BOOL':
+      case 'INFINITY':
+      case 'NAN':
+      case 'REGEX':
+      case 'REGEX_START':
+        base = this.parseLiteral();
+        break;
+      default:
+        this._error([], "Invalid Value");
+    }
+
+    // Handle function calls and accessors iteratively
+    while (true) {
+      if (this.la.kind === 'CALL_START' || this.la.kind === 'FUNC_EXIST' || this.la.kind === 'ES6_OPTIONAL_CALL') {
+        // Function call
+        let funcExist = null;
+        if (this.la.kind === 'FUNC_EXIST') {
+          this._match('FUNC_EXIST');
+          funcExist = true;
+        } else if (this.la.kind === 'ES6_OPTIONAL_CALL') {
+          this._match('ES6_OPTIONAL_CALL');
+          const args = this.parseArguments();
+          base = ["optcall", base, ...args];
+          continue;
+        }
+
+        // Parse Arguments manually (CALL_START ... CALL_END)
+        this._match('CALL_START');
+        let args = [];
+        if (this.la.kind !== 'CALL_END') {
+          args = this.parseArgList();
+          if (this.la.kind === ',') {
+            this._match(',');  // Optional trailing comma
+          }
+        }
+        this._match('CALL_END');
+
+        base = funcExist ? ["?call", base, ...args] : [base, ...args];
+      } else if (this.la.kind === '.') {
+        // Property access: value.property
+        this._match('.');
+        const prop = this.parseProperty();
+        base = ['.', base, prop];
+      } else if (this.la.kind === '?.') {
+        // Optional property access: value?.property
+        this._match('?.');
+        const optProp = this.parseProperty();
+        base = ['?.', base, optProp];
+      } else if (this.la.kind === '::') {
+        // Prototype access: value::property or value::
+        this._match('::');
+        if (this.la.kind === 'PROPERTY') {
+          const protoProp = this.parseProperty();
+          base = ['::', base, protoProp];
+        } else {
+          base = ['::', base, 'prototype'];
+        }
+      } else if (this.la.kind === '?::') {
+        // Optional prototype access: value?::property or value?::
+        this._match('?::');
+        if (this.la.kind === 'PROPERTY') {
+          const optProtoProp = this.parseProperty();
+          base = ['?::', base, optProtoProp];
+        } else {
+          base = ['?::', base, 'prototype'];
+        }
+      } else if (this.la.kind === 'INDEX_START') {
+        // Array indexing or slicing: value[index] or value[start..end]
+        this._match('INDEX_START');
+        // Check for slice vs simple index
+        if (this.la.kind === '..' || this.la.kind === '...') {
+          // Slice without start: [..3] or [...3]
+          const slice = this.parseSlice();
+          this._match('INDEX_END');
+          base = ['[]', base, slice];
+        } else {
+          const index = this.parseExpression();
+          // Check if it's a slice: [1..3] or [1...3]
+          if (this.la.kind === '..' || this.la.kind === '...') {
+            // It's a slice! Parse as Slice
+            const dots = this.parseRangeDots();
+            let endExpr = null;
+            if (this.la.kind !== 'INDEX_END') {
+              endExpr = this.parseExpression();
+            }
+            this._match('INDEX_END');
+            base = ['[]', base, [dots, index, endExpr]];
+          } else {
+            // Simple index
+            this._match('INDEX_END');
+            base = ['[]', base, index];
+          }
+        }
+      } else if (this.la.kind === 'INDEX_SOAK') {
+        // Optional indexing: value?[index]
+        this._match('INDEX_SOAK');
+        this._match('INDEX_START');
+        const soakIndex = this.parseExpression();
+        this._match('INDEX_END');
+        base = ['?[]', base, soakIndex];
+      } else if (this.la.kind === 'ES6_OPTIONAL_INDEX') {
+        // ES6 optional indexing: value?.[index]
+        this._match('ES6_OPTIONAL_INDEX');
+        this._match('INDEX_START');
+        const optIndex = this.parseExpression();
+        this._match('INDEX_END');
+        base = ['optindex', base, optIndex];
+      } else {
+        // No more accessors or calls
+        break;
+      }
+    }
+
+    return base;
+  }
+'''
+
+  # Special handler for *Tail patterns with multiple TERMINATOR rules
+  _generateTailSpecial: (typeName, rules) ->
+    # Pattern: BodyTail with rules like:
+    #   TERMINATOR Line BodyTail
+    #   TERMINATOR BodyTail
+    #   '' (epsilon)
+
+    # Find the rules
+    separatorRules = rules.filter (r) -> r.symbols.length > 0 and r.symbols[0] isnt ''
+    epsilonRule = rules.find (r) -> r.symbols.length is 0 or r.symbols[0] is ''
+
+    return null if separatorRules.length is 0
+
+    # Get separator token (e.g., TERMINATOR)
+    separator = separatorRules[0].symbols[0]
+
+    # Find rule with element (e.g., TERMINATOR Line BodyTail)
+    ruleWithElement = separatorRules.find (r) -> r.symbols.length > 2
+    # Find rule without element (e.g., TERMINATOR BodyTail)
+    ruleWithoutElement = separatorRules.find (r) -> r.symbols.length is 2
+
+    if not ruleWithElement or not ruleWithoutElement
+      return null  # Fall back to default handling
+
+    # Get element type (e.g., Line)
+    elementType = ruleWithElement.symbols[1]
+
+    # Compute FIRST set of element to check what tokens can start it
+    elementFirstSet = []
+    if @types[elementType]
+      # Use _computeFirst to get all tokens that can start this type
+      firstSet = @_computeFirst([elementType])
+      for token from firstSet when token isnt ''
+        elementFirstSet.push token
+
+    # Deduplicate and build first cases array
+    uniqueTokens = Array.from(new Set(elementFirstSet))
+    firstCases = uniqueTokens.map((tok) -> "'#{tok}'").join(', ')
+
+    # Build the function
+    code = "  parse#{typeName}() {\n"
+    code += "    if (this.la.kind === '#{separator}') {\n"
+    code += "      this._match('#{separator}');\n"
+    code += "      // Check if next token can start #{elementType}\n"
+    code += "      if ([#{firstCases}].includes(this.la.kind)) {\n"
+    code += "        // Rule: #{separator} #{elementType} #{typeName}\n"
+    code += "        const elem = this.parse#{elementType}();\n"
+    code += "        const tail = this.parse#{typeName}();\n"
+    code += "        return [elem, ...tail];\n"
+    code += "      } else {\n"
+    code += "        // Rule: #{separator} #{typeName} (skip separator, continue)\n"
+    code += "        const tail = this.parse#{typeName}();\n"
+    code += "        return [...tail];\n"
+    code += "      }\n"
+    code += "    } else {\n"
+    code += "      // ε production\n"
+    code += "      return [];\n"
+    code += "    }\n"
+    code += "  }\n"
+    code
+
+  # Special handler for ArgList - parse comma-separated arguments
+  _generateArgListSpecial: (rules) ->
+    # ArgList: Arg ArgListTail | INDENT ArgList OptComma OUTDENT
+    # We want iterative parsing: first arg, then while(comma) more args
+    '''
+  parseArgList() {
+    // Check for INDENT case (multiline)
+    if (this.la.kind === 'INDENT') {
+      this._match('INDENT');
+      const list = this.parseArgList();  // Recursive for multiline
+      if (this.la.kind === ',') {
+        this._match(',');  // Optional trailing comma
+      }
+      this._match('OUTDENT');
+      return list;
+    }
+
+    // Parse first argument
+    const list = [];
+    list.push(this.parseArg());
+
+    // Parse remaining arguments
+    while (this.la.kind === ',' || this.la.kind === 'TERMINATOR') {
+      if (this.la.kind === 'TERMINATOR') {
+        // Multiline within list (newline-separated args)
+        this._match('TERMINATOR');
+        if (this.la.kind === 'CALL_END' || this.la.kind === ']') {
+          break;  // End of list
+        }
+        list.push(this.parseArg());
+      } else {
+        // Comma-separated args
+        this._match(',');
+        // Check for trailing comma
+        if (this.la.kind === 'CALL_END' || this.la.kind === ']' || this.la.kind === 'OUTDENT') {
+          break;  // Trailing comma before end
+        }
+        list.push(this.parseArg());
+      }
+    }
+
+    return list;
+  }
+'''
+
+  # Special handler for ArgElisionList - parse array elements (including elisions/sparse arrays)
+  _generateArgElisionListSpecial: (rules) ->
+    # ArgElisionList: ArgElision ArgElisionListTail | INDENT ArgElisionList OptElisions OUTDENT
+    # Similar to ArgList but handles elisions (sparse arrays like [1,,3])
+    '''
+  parseArgElisionList() {
+    // Check for INDENT case (multiline)
+    if (this.la.kind === 'INDENT') {
+      this._match('INDENT');
+      const list = this.parseArgElisionList();  // Recursive for multiline
+      const elisions = this.parseOptElisions();
+      this._match('OUTDENT');
+      return [...list, ...elisions];
+    }
+
+    // Parse first element (may have elisions)
+    const list = [];
+    const first = this.parseArgElision();
+    list.push(...first);
+
+    // Parse remaining elements
+    while (this.la.kind === ',' || this.la.kind === 'TERMINATOR') {
+      if (this.la.kind === 'TERMINATOR') {
+        // Multiline within list
+        this._match('TERMINATOR');
+        if (this.la.kind === ']' || this.la.kind === 'OUTDENT') {
+          break;  // End of list
+        }
+        const elem = this.parseArgElision();
+        list.push(...elem);
+      } else {
+        // Comma-separated
+        this._match(',');
+        // Check for trailing comma or end
+        if (this.la.kind === ']' || this.la.kind === 'OUTDENT') {
+          break;  // Trailing comma before end
+        }
+        const elem = this.parseArgElision();
+        list.push(...elem);
+      }
+    }
+
+    return list;
+  }
+'''
+
+  # Special handler for AssignList - parse comma-separated object properties
+  _generateAssignListSpecial: (rules) ->
+    # AssignList: AssignObj AssignListTail | INDENT AssignList OptComma OUTDENT | ''
+    # We want iterative parsing: first prop, then while(comma) more props
+    '''
+  parseAssignList() {
+    // Check for empty object
+    if (this.la.kind === '}' || this.la.kind === 'OUTDENT') {
+      return [];  // Empty object
+    }
+
+    // Check for INDENT case (multiline)
+    if (this.la.kind === 'INDENT') {
+      this._match('INDENT');
+      const list = this.parseAssignList();  // Recursive for multiline
+      if (this.la.kind === ',') {
+        this._match(',');  // Optional trailing comma
+      }
+      this._match('OUTDENT');
+      return list;
+    }
+
+    // Parse first property
+    const list = [];
+    list.push(this.parseAssignObj());
+
+    // Parse remaining properties
+    while (this.la.kind === ',' || this.la.kind === 'TERMINATOR') {
+      if (this.la.kind === 'TERMINATOR') {
+        // Multiline within list (newline-separated properties)
+        this._match('TERMINATOR');
+        if (this.la.kind === '}' || this.la.kind === 'OUTDENT') {
+          break;  // End of list
+        }
+        list.push(this.parseAssignObj());
+      } else {
+        // Comma-separated properties
+        this._match(',');
+        // Check for trailing comma
+        if (this.la.kind === '}' || this.la.kind === 'OUTDENT') {
+          break;  // Trailing comma before end
+        }
+        list.push(this.parseAssignObj());
+      }
+    }
+
+    return list;
+  }
+'''
+
+  # Special handler for Array - handle empty, with elisions, and with elements
+  _generateArraySpecial: (rules) ->
+    # Array: [ ] | [ Elisions ] | [ ArgElisionList OptElisions ]
+    # Also needs to detect Range: [ Expression .. Expression ]
+    '''
+  parseArray() {
+    this._match('[');
+
+    // Check for empty array
+    if (this.la.kind === ']') {
+      this._match(']');
+      return ["array"];
+    }
+
+    // Check if it starts with comma (elisions only: [,,3])
+    if (this.la.kind === ',') {
+      const elisions = this.parseElisions();
+      this._match(']');
+      return ["array", ...elisions];
+    }
+
+    // Parse first element/expression
+    // Could be:
+    // - Start of array: [1, 2, 3]
+    // - Start of range: [1..3] or [1...4]
+    const firstExpr = this.parseExpression();
+
+    // Check for range operators
+    if (this.la.kind === '..' || this.la.kind === '...') {
+      // It's a Range! [ Expression RangeDots Expression ]
+      const dots = this.parseRangeDots();
+      const secondExpr = this.parseExpression();
+      this._match(']');
+      return [dots, firstExpr, secondExpr];
+    }
+
+    // It's an Array - parse remaining elements
+    // We already have first element, now check for more
+    let list = [firstExpr];
+
+    // Parse rest of array (commas and more elements)
+    while (this.la.kind === ',') {
+      this._match(',');
+      // Check for trailing comma or closing bracket
+      if (this.la.kind === ']') {
+        break;
+      }
+      // Parse next element
+      const elem = this.parseExpression();
+      list.push(elem);
+    }
+
+    this._match(']');
+    return ["array", ...list];
+  }
+'''
+
+  # Special handler for Object - handle empty and with properties
+  _generateObjectSpecial: (rules) ->
+    # Object: { } | { AssignList OptComma }
+    '''
+  parseObject() {
+    this._match('{');
+
+    // Check for empty object
+    if (this.la.kind === '}') {
+      this._match('}');
+      return ["object"];
+    }
+
+    // Parse object properties
+    const list = this.parseAssignList();
+
+    // Optional trailing comma
+    if (this.la.kind === ',') {
+      this._match(',');
+    }
+
+    this._match('}');
+    return ["object", ...list];
+  }
+'''
+
+  # Special handler for AssignObj - handle {x}, {a: 1}, {...rest}, {a = default}
+  _generateAssignObjSpecial: (rules) ->
+    # AssignObj: ObjAssignable | ObjRestValue | ObjAssignable : Expression | ...
+    '''
+  parseAssignObj() {
+    // Check for rest spread: {...rest}
+    if (this.la.kind === '...') {
+      return this.parseObjRestValue();
+    }
+
+    // Parse the key (ObjAssignable or SimpleObjAssignable)
+    let key;
+    if (this.la.kind === 'IDENTIFIER' || this.la.kind === 'PROPERTY' || this.la.kind === '@' ||
+        this.la.kind === '[' || this.la.kind === 'NUMBER' || this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
+
+      // For default values, we need SimpleObjAssignable
+      if (this.la.kind === 'IDENTIFIER' || this.la.kind === 'PROPERTY' || this.la.kind === '@') {
+        key = this.parseSimpleObjAssignable();
+      } else {
+        key = this.parseObjAssignable();
+      }
+
+      // Check what follows the key
+      if (this.la.kind === ':') {
+        // Property with value: {a: 1}
+        this._match(':');
+        if (this.la.kind === 'INDENT') {
+          this._match('INDENT');
+          const value = this.parseExpression();
+          this._match('OUTDENT');
+          return [key, value, ":"];
+        } else {
+          const value = this.parseExpression();
+          return [key, value, ":"];
+        }
+      } else if (this.la.kind === '=') {
+        // Default value: {a = 5}
+        this._match('=');
+        if (this.la.kind === 'INDENT') {
+          this._match('INDENT');
+          const value = this.parseExpression();
+          this._match('OUTDENT');
+          return [key, value, "="];
+        } else {
+          const value = this.parseExpression();
+          return [key, value, "="];
+        }
+      } else {
+        // Property shorthand: {x}
+        return [key, key, null];
+      }
+    }
+
+    this._error([], "Invalid AssignObj");
+  }
+'''
+
+  # Wrap parse function with recursion depth tracking
+  _wrapWithDepthTracking: (typeName, funcBody) ->
+    # Find where function body starts (after the opening brace)
+    funcPattern = "parse#{typeName}() {"
+    startIdx = funcBody.indexOf(funcPattern)
+    return funcBody if startIdx is -1
+
+    startIdx += funcPattern.length
+
+    # Find the last closing brace (function end)
+    lastBraceIdx = funcBody.lastIndexOf('}')
+    return funcBody if lastBraceIdx is -1
+
+    # Split into: before opening | body (without final }) | after (with final })
+    before = funcBody.substring(0, startIdx)
+    body = funcBody.substring(startIdx, lastBraceIdx)
+    after = funcBody.substring(lastBraceIdx + 1)  # Skip the } itself
+
+    # Wrap body with depth tracking
+    depthCheck = '''
+
+    // Recursion depth tracking
+    this.depth++;
+    if (this.depth > this.maxDepth) {
+      this.depth--;
+      this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parse''' + typeName + '''(). Possible grammar cycle.");
+    }
+    try {'''
+
+    finallyBlock = '''
+    } finally {
+      this.depth--;
+    }
+  }'''
+
+    before + depthCheck + body + finallyBlock + after
+
+
+  # Generate specialized dispatch when we have pass-through types
+  # For rules like: Value → Assignable | Literal | Range | ...
+  # We need to check which alternative's FIRST set contains the current token
+  _generateSmartDispatch: (typeName, rules) ->
+    # Map each token to the BEST production for that token
+    tokenToProduction = new Map
+
+    for rule in rules
+      firsts = @_computeFirst(rule.symbols)
+
+      # Skip epsilon
+      continue if firsts.size is 0 or (rule.symbols.length is 1 and rule.symbols[0] is '')
+
+      # For each token in this production's FIRST set
+      for token from firsts when token isnt ''
+        existing = tokenToProduction.get(token)
+
+        if not existing
+          # First production for this token - use it
+          tokenToProduction.set(token, rule)
+        else
+          # Conflict! Pick the better one using specificity rules
+          first = rule.symbols[0]
+          existingFirst = existing.symbols[0]
+
+          # Specificity hierarchy (most specific first):
+          # Literal > Code > Value > Assign > Operation
+          # This ensures NUMBER goes to Value (which has Literal), not Operation
+
+          specificityRank = (type) =>
+            switch type
+              when 'Literal' then 100
+              when 'Code' then 90
+              when 'Value' then 80
+              when 'Assign' then 70
+              when 'Operation' then 60
+              when 'Assignable' then 50
+              else 40
+
+          newRank = specificityRank(first)
+          existingRank = specificityRank(existingFirst)
+
+          if newRank > existingRank
+            tokenToProduction.set(token, rule)
+          else if newRank is existingRank
+            # Same rank - prefer shorter
+            if rule.symbols.length < existing.symbols.length
+              tokenToProduction.set(token, rule)
+
+    # Generate cases (no duplicates!)
+    cases = []
+
+    for [token, rule] from tokenToProduction
+      cases.push "    case '#{token}':"
+
+      # Generate code
+      first = rule.symbols[0]
+      if @types[first] and rule.symbols.length is 1
+        # Pass-through: just delegate
+        cases.push "      return this.parse#{first}();"
+      else
+        # Complex: generate full parsing
+        parseCode = @_generateParseCode(rule)
+        cases.push "      {"
+        cases.push "      #{parseCode}"
+        cases.push "      }"
+
+    # Default error
+    allTokens = Array.from(tokenToProduction.keys()).map((t) -> "'#{t}'")
+    expected = allTokens.join(', ')
+
+    '''
+  parse''' + typeName + '''() {
+    switch (this.la.kind) {
+''' + cases.join('\n') + '''
+      default:
+        this._error([''' + expected + '''], "Invalid ''' + typeName + '''");
+    }
+  }
+'''
+
+  # Extract action code for RD parser
+  _getRDAction: (rule, resultVars = []) ->
+    # Use the original action stored during rule creation
+    action = rule.originalAction
+
+    if action
+      # Handle different action types from grammar
+      if typeof action is 'string'
+        # String action like '[1, ...2]' or '["program", ...1]'
+        expr = action
+
+        # Transform positional references: $1 → $$1, 1 → $$1
+        # Strategy: If action contains $digit, only transform those (bare digits are literals)
+        #           If action has no $digit, transform all bare digits (they're positional refs)
+
+        hasDollarDigits = /\$\d+/.test(expr)
+
+        if hasDollarDigits
+          # Has $digit: transform ONLY $digit → $$digit, leave bare digits alone
+          transformed = expr.replace(/\$(\d+)/g, (m, n) =>
+            idx = parseInt(n, 10) - 1
+            if idx >= 0 and idx < resultVars.length
+              return resultVars[idx]
+            return m
+          )
+        else
+          # No $digit: transform ALL bare digits → $$digit
+          transformed = expr
+
+          # Transform bare digits: 1 → $$1, 2 → $$2
+          transformed = transformed.replace(/(?<![.\w$])(\d+)(?![.\w])/g, (m, n) =>
+            idx = parseInt(n, 10) - 1
+            if idx >= 0 and idx < resultVars.length
+              return resultVars[idx]
+            return m
+          )
+
+          # Transform spread: ...1 → ...$$1
+          transformed = transformed.replace(/\.\.\.(\d+)/g, (m, n) =>
+            idx = parseInt(n, 10) - 1
+            if idx >= 0 and idx < resultVars.length
+              return "...#{resultVars[idx]}"
+            return m
+          )
+
+        return "return #{transformed};"
+
+      else if typeof action is 'number'
+        # Numeric action like 1 or 2 means return that position
+        idx = action - 1
+        if idx >= 0 and idx < resultVars.length
+          return "return #{resultVars[idx]};"
+        return "return null;"
+
+    # No explicit action - use defaults
+    if resultVars.length is 1
+      "return #{resultVars[0]};"
+    else if resultVars.length is 0
+      "return [];"  # Epsilon productions return empty array
+    else
+      "return [#{resultVars.join(', ')}];"
+
+  # Extract action code from performAction function
+  _extractActionForRule: (ruleId) ->
+    return null unless @performAction
+
+    # Parse the performAction function to extract case ruleId
+    match = @performAction.match(///case\s+#{ruleId}:\s*([\s\S]*?)(?:break;|case\s+\d+:)///)
+    return match[1].trim() if match
+    null
+
+  _generateModuleCore: ->
+    tableCode = @_generateTableCode @parseTable
+
+    """{
+      symbolIds: #{JSON.stringify @symbolIds},
+      tokenNames: #{JSON.stringify(@tokenNames).replace /"([0-9]+)":/g, "$1:"},
+      ruleData: #{JSON.stringify @ruleData},
+      parseTable: #{tableCode},
+      defaultActions: #{JSON.stringify(@defaultActions).replace /"([0-9]+)":/g, "$1:"},
+      performAction: #{@performAction},
+      #{String(@parseError).replace(/^function /, '')},
+      #{String(@parse     ).replace(/^function /, '')},
+      trace() {},
+      yy: {},
+    }"""
+
+  _generateTableCode: (stateTable) ->
+    JSON.stringify(stateTable, null, 0).replace /"([0-9]+)"(?=:)/g, "$1"
+
+  # ============================================================================
+  # Runtime Parser
+  # ============================================================================
+
+  parseError: (str, hash) ->
+    if hash.recoverable
+      @trace str
+    else
+      # Format error with line/column information
+      line = (hash.line or 0) + 1  # Convert 0-based to 1-based
+      col = hash.loc?.first_column or 0
+      token = if hash.token then " (token: #{hash.token})" else ''
+      text = if hash.text then " near '#{hash.text}'" else ''
+      location = "line #{line}, column #{col}"
+      message = "Parse error at #{location}#{token}#{text}: #{str}"
+
+      error = new Error message
+      error.hash = hash
+      throw error
+
+  parse: (input) ->
+    [stk, val, loc] = [[0], [null], []]
+    [parseTable, yytext, yylineno, yyleng, recovering] = [@parseTable, '', 0, 0, 0]
+    [TERROR, EOF] = [2, 1]
+
+    lexer = Object.create @lexer
+    sharedState = {yy: {}}
+    sharedState.yy[k] = v for own k, v of @yy
+
+    lexer.setInput input, sharedState.yy
+    [sharedState.yy.lexer, sharedState.yy.parser] = [lexer, this]
+
+    lexer.yylloc = {} unless lexer.yylloc?
+    yyloc = lexer.yylloc
+    loc.push yyloc
+
+    ranges = lexer.options?.ranges
+
+    @parseError = if typeof sharedState.yy.parseError is 'function'
+      sharedState.yy.parseError
+    else
+      Object.getPrototypeOf(this).parseError
+
+    lex = =>
+      token = lexer.lex() or EOF
+      token = @symbolIds[token] or token unless typeof token is 'number'
+      token
+
+    [symbol, preErrorSymbol, state, action, r, yyval, p, len, newState, expected] =
+      [null, null, null, null, null, {}, null, null, null, null]
+
+    loop
+      state = stk[stk.length - 1]
+      action = @defaultActions[state] or (
+        symbol = lex() if not symbol?
+        parseTable[state]?[symbol]
+      )
+
+      unless action?.length and action[0]
+        errStr = ''
+        unless recovering
+          expected = ("'#{@tokenNames[p]}'" for own p of parseTable[state] when @tokenNames[p] and p > TERROR)
+        errStr = if lexer.showPosition
+          "Parse error on line #{yylineno + 1}:\n#{lexer.showPosition()}\nExpecting #{expected.join(', ')}, got '#{@tokenNames[symbol] or symbol}'"
+        else
+          "Parse error on line #{yylineno + 1}: Unexpected #{if symbol is EOF then "end of input" else "'#{@tokenNames[symbol] or symbol}'"}"
+
+          @parseError errStr, {
+            text: lexer.match
+            token: @tokenNames[symbol] or symbol
+            line: lexer.yylineno
+            loc: yyloc
+            expected
+          }
+        throw new Error errStr
+
+      throw new Error "Parse Error: multiple actions possible at state: #{state}, token: #{symbol}" if action[0] instanceof Array and action.length > 1
+
+      switch action[0]
+        when 1 # shift
+          stk.push symbol, action[1]
+          val.push lexer.yytext
+          loc.push lexer.yylloc
+          symbol = null
+          unless preErrorSymbol
+            [yyleng, yytext, yylineno, yyloc] = [lexer.yyleng, lexer.yytext, lexer.yylineno, lexer.yylloc]
+            recovering-- if recovering > 0
+          else
+            [symbol, preErrorSymbol] = [preErrorSymbol, null]
+
+        when 2 # reduce
+          len = @ruleData[action[1]][1]
+          yyval.$ = val[val.length - len]
+          [locFirst, locLast] = [loc[loc.length - (len or 1)], loc[loc.length - 1]]
+          yyval._$ = {
+            first_line: locFirst.first_line, last_line: locLast.last_line
+            first_column: locFirst.first_column, last_column: locLast.last_column
+          }
+          yyval._$.range = [locFirst.range[0], locLast.range[1]] if ranges
+
+          r = @performAction.apply yyval, [yytext, yyleng, yylineno, sharedState.yy, action[1], val, loc]
+          yyval.$ = r if r?
+
+          if len
+            stk.length -= len * 2
+            val.length -= len
+            loc.length -= len
+
+          stk.push @ruleData[action[1]][0]
+          val.push yyval.$
+          loc.push yyval._$
+          newState = parseTable[stk[stk.length - 2]][stk[stk.length - 1]]
+          stk.push newState
+
+        when 3 # accept
+          return val[val.length - 1]
+
+  trace!: (msg) -> # Debug output (no-op by default)
+    console.log msg if @options?.debug
+
+  createParser: ->
+    parserInstance = @_generateModuleCore()
+    moduleExpr = """
+    (function(){
+      const parserInstance = #{parserInstance}
+      #{@moduleInclude || ''}
+      class Parser { yy = {} }
+      Parser.prototype = parserInstance
+      parserInstance.Parser = Parser
+      return new Parser()
+    })()
+    """
+    parser = eval moduleExpr
+    parser.rules = @rules
+    parser.lexer = @lexer
+    parser
+
+# ==============================================================================
+# Exports
+# ==============================================================================
+
+export { Generator }
+
+export Parser = (grammar, options) ->
+  generator = new Generator grammar, options
+  generator.createParser()
+
+export default Solar =
+  Generator: (g, options) ->
+    new Generator g, {...g.options, ...options}
+
+  Parser: (grammar, options) ->
+    generator = new Generator grammar, options
+    generator.createParser()
+
+# ==============================================================================
+# CLI Interface
+# ==============================================================================
+
+# Check if running as CLI (handles symlinks from global install)
+scriptPath = fileURLToPath(import.meta.url)
+isRunAsScript = process.argv[1] and (
+  process.argv[1] is scriptPath or
+  fs.realpathSync(process.argv[1]) is scriptPath or
+  fs.realpathSync(process.argv[1]) is fs.realpathSync(scriptPath)
+)
+
+if isRunAsScript
+  do ->
+    showVersion = ->
+      console.log """
+      Solar #{VERSION} - SLR(1) Parser Generator
+      """
+
+    showHelp = ->
+      showVersion()
+      console.log """
+      Usage: solar [options] <grammar-file>
+
+      Options:
+        -h, --help              Show this help
+        -v, --version           Show version
+        -i, --info              Show grammar information
+        -s, --sexpr             Show grammar as s-expression
+        -c, --conflicts         Show conflict details (use with --info)
+        -r, --recursive-descent Generate predictive RD parser (fast!)
+        -o, --output <file>     Output file (default: parser.js)
+
+      Examples:
+        solar grammar.js
+        solar --info grammar.js
+        solar --info --conflicts grammar.js
+        solar --sexpr grammar.js
+        solar -r -o parser.js grammar-1.js
+        solar -o parser.js grammar.js
+      """
+
+    showStats = (generator) ->
+      tokens = Object.keys(generator.tokenNames or {}).length
+      types = Object.keys(generator.types or {}).length
+      rules = generator.rules?.length or 0
+      states = generator.states?.length or 0
+      conflicts = generator.conflicts or 0
+
+      console.log """
+
+      ⏱️ Statistics:
+      • Tokens: #{tokens}
+      • Types: #{types}
+      • Rules: #{rules}
+      • States: #{states}
+      • Conflicts: #{conflicts}
+      """
+
+      # Show conflict details if requested
+      if options.conflicts and generator.conflictDetails?.length
+        console.log "\n🔧 Conflict Details (first 30):"
+        for conflict, i in generator.conflictDetails.slice(0, 30)
+          console.log "\n  #{i + 1}. State #{conflict.state}, lookahead '#{conflict.lookaheadName}':"
+          console.log "     Rule #{conflict.rule}: #{conflict.ruleType} → #{conflict.ruleSymbols}"
+          console.log "     Resolution: #{conflict.resolution} (by default)"
+
+    # Parse command line
+    options = {help: false, version: false, info: false, sexpr: false, conflicts: false, recursiveDescent: false, output: 'parser.js'}
+    grammarFile = null
+    i = 0
+
+    while i < process.argv.length - 2
+      arg = process.argv[i + 2]
+      switch arg
+        when '-h', '--help'              then options.help             = true
+        when '-v', '--version'           then options.version          = true
+        when '-i', '--info'              then options.info             = true
+        when '-s', '--sexpr'             then options.sexpr            = true
+        when '-c', '--conflicts'         then options.conflicts        = true
+        when '-r', '--recursive-descent' then options.recursiveDescent = true
+        when '-o', '--output'            then options.output           = process.argv[++i + 2]
+        else grammarFile = arg unless arg.startsWith('-')
+      i++
+
+    if options.help      then showHelp()    ; process.exit 0
+    if options.version   then showVersion() ; process.exit 0
+    if not grammarFile   then showHelp()    ; process.exit 0
+    if options.conflicts then options.info = true  # --conflicts implies --info
+
+    try
+      unless fs.existsSync grammarFile
+        console.error "Grammar file not found: #{grammarFile}"
+        process.exit 1
+
+      # Load grammar
+      grammar = if grammarFile.endsWith('.js') or grammarFile.endsWith('.ts') or grammarFile.endsWith('.rip')
+        (await import(pathToFileURL(path.resolve(grammarFile)).href)).default
+      else if grammarFile.endsWith('.json')
+        JSON.parse fs.readFileSync(grammarFile, 'utf8')
+      else
+        throw new Error "Unsupported format. Use .js, .ts, .json, or .rip (with Bun loader)"
+
+      unless grammar
+        throw new Error "Failed to load grammar"
+
+      # Show grammar as s-expression
+      if options.sexpr
+        parts = ['(grammar']
+
+        if grammar.grammar
+          parts.push '  (rules'
+          for [name, productions] from Object.entries(grammar.grammar)
+            parts.push "    (#{name}"
+            for production in productions
+              [pattern, action, opts] = production
+              action ?= 1  # Default to 1 if not provided
+              actionStr = if typeof action is 'string' then action else JSON.stringify(action)
+              optsStr = if opts then " #{JSON.stringify(opts)}" else ''
+              patternStr = if pattern is '' then '""' else pattern
+              parts.push "      (#{patternStr} #{actionStr}#{optsStr})"
+            parts.push "    )"
+          parts.push '  )'
+
+        if grammar.operators?.length
+          parts.push '  (operators'
+          grammar.operators.forEach (op) ->
+            parts.push "    (#{if Array.isArray(op) then op.join(' ') else op})"
+          parts.push '  )'
+
+        parts.push ')'
+        console.log parts.join('\n')
+        return
+
+      # Generate parser
+      generator = new Generator grammar, options
+
+      if options.info
+        showStats generator
+      else
+        parserCode = generator.generate()
+        fs.writeFileSync options.output, parserCode
+        parserType = if options.recursiveDescent then '(Recursive Descent - Fast!)' else '(Table-Driven)'
+        console.log "\nParser generated #{parserType}: #{options.output}"
+
+    catch error
+      console.error "Error:", error.message
+      process.exit 1
