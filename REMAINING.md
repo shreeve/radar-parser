@@ -458,7 +458,7 @@ fn = ->
 [(x) -> x + 1]    # ← Inline arrow, parser expects block
 ```
 
-**Fix:** 
+**Fix:**
 - Grammar: Add Code to Expression (creates cycles)
 - Or: Lexer rewriter to detect inline arrows
 
@@ -657,8 +657,8 @@ Operation: [
 
 ### Phase 1: Codegen Fixes (Safest)
 
-**Effort:** 2-4 hours  
-**Impact:** +7 tests → 915/938 (97.5%)  
+**Effort:** 2-4 hours
+**Impact:** +7 tests → 915/938 (97.5%)
 **Risk:** Low
 
 **Steps:**
@@ -670,8 +670,8 @@ Operation: [
 
 ### Phase 2: Lexer Rewriter (Moderate Risk)
 
-**Effort:** 8-12 hours  
-**Impact:** +20 tests → 935/938 (99.7%)  
+**Effort:** 8-12 hours
+**Impact:** +20 tests → 935/938 (99.7%)
 **Risk:** Medium - May break edge cases
 
 **Steps:**
@@ -684,8 +684,8 @@ Operation: [
 
 ### Phase 3: Grammar Changes (Highest Risk)
 
-**Effort:** 4-8 hours  
-**Impact:** +3 tests → 938/938 (100%)  
+**Effort:** 4-8 hours
+**Impact:** +3 tests → 938/938 (100%)
 **Risk:** High - May introduce LL(1) conflicts
 
 **Steps:**
@@ -727,7 +727,7 @@ Operation: [
 
 **Result:** ~915/938 (97.5%)
 
-**Maintains:** Grammar and lexer remain untouched  
+**Maintains:** Grammar and lexer remain untouched
 **Breaks:** codegen.js UNMODIFIED principle (but less risky than lexer)
 
 ---
@@ -893,31 +893,31 @@ While: [
 
 ### If We Fix Codegen Only
 
-**Tests:** 908 → ~915 (97.5%)  
-**Files:** codegen.js modified  
-**Risk:** Low  
-**Time:** 2-4 hours  
+**Tests:** 908 → ~915 (97.5%)
+**Files:** codegen.js modified
+**Risk:** Low
+**Time:** 2-4 hours
 **Architecture:** Partially compromised (codegen no longer pristine)
 
 ---
 
 ### If We Fix Codegen + Lexer
 
-**Tests:** 908 → ~935 (99.7%)  
-**Files:** codegen.js + lexer.js modified  
-**Risk:** Medium  
-**Time:** 10-16 hours  
+**Tests:** 908 → ~935 (99.7%)
+**Files:** codegen.js + lexer.js modified
+**Risk:** Medium
+**Time:** 10-16 hours
 **Architecture:** Significantly compromised (both components modified)
 
 ---
 
 ### If We Fix Everything
 
-**Tests:** 908 → 938 (100%)  
-**Files:** codegen.js + lexer.js + grammar.rip modified  
-**Risk:** High  
-**Time:** 20-30 hours  
-**Architecture:** Fully compromised (all components modified)  
+**Tests:** 908 → 938 (100%)
+**Files:** codegen.js + lexer.js + grammar.rip modified
+**Risk:** High
+**Time:** 20-30 hours
+**Architecture:** Fully compromised (all components modified)
 **LL(1) compliance:** May be lost
 
 ---
@@ -1115,4 +1115,3 @@ The remaining 3.2% would require:
 The clean architecture, zero coupling, and 13 perfect test files prove this is a **production-ready, well-engineered parser generator**. The remaining tests represent known trade-offs, not deficiencies.
 
 **This is parser generation done right!** ✨
-
