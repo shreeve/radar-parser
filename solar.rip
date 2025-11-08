@@ -1215,10 +1215,11 @@ class Generator
 ''' + opCases.join('\n') + '''
         case 'SPACE?': {
           // Ternary operator: condition ? trueBranch : falseBranch
+          // Branches can contain operators, so use parseOperation
           this._match('SPACE?');
-          const trueBranch = this.parseValue();
+          const trueBranch = this.parseOperation();
           this._match(':');
-          const falseBranch = this.parseValue();
+          const falseBranch = this.parseOperation();
           left = ["?:", left, trueBranch, falseBranch];
           break;
         }
@@ -1272,21 +1273,9 @@ class Generator
           let guard = null;
           if (this.la.kind === 'WHEN') {
             this._match('WHEN');
-            // Parse guard - need to handle unary operators (not, !) and comparisons
-            // Check for unary first
-            if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+') {
-              const unaryOp = this._match(this.la.kind);
-              const unaryArg = this.parseValue();
-              guard = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
-            } else {
-              guard = this.parseValue();
-            }
-            // Check for binary operators after the value/unary
-            if (this.la.kind === 'COMPARE' || this.la.kind === 'RELATION' || this.la.kind === '&&' || this.la.kind === '||') {
-              const op = this._match(this.la.kind);
-              const right = this.parseValue();
-              guard = [op, guard, right];
-            }
+            // Parse guard - use parseOperation to handle complex expressions
+            // (x > 1 && x < 4, !isEmpty, etc.)
+            guard = this.parseOperation();
           }
 
           // Build loop spec based on type
@@ -1993,7 +1982,8 @@ class Generator
         base = "super";  // Base case
         break;
       case 'DYNAMIC_IMPORT':
-        base = this.parseAssignable();
+        // DYNAMIC_IMPORT Arguments → parse as invocation, then handle accessors
+        base = this.parseInvocation();
         break;
       case 'DO_IIFE':
         base = this.parseDoIife();
