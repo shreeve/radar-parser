@@ -294,7 +294,7 @@ compile('def fib(n)\n  if n <= 1\n    n\n  else\n    fib(n-1) + fib(n-2)')  // R
 **Remaining challenges:**
 - ✅ ~~Comprehensions~~ **SOLVED!** Enabled via Operation iterator
 - Inline arrow function syntax (needs Expression-level Code rule)
-- Complex OUTDENT patterns in nested structures  
+- Complex OUTDENT patterns in nested structures
 - Inline switch/when with `then` keyword (lexer rewriter)
 - Various edge cases (10-15 tests)
 
