@@ -1640,22 +1640,83 @@ parseClass() {
 }
 
 parseImport() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseImport(). Possible grammar cycle.");
-}
-try {
-switch (this.la.kind) {    case 'IMPORT':
-      {
-      const $$1 = this._match('IMPORT');
-      const $$2 = this.parseString();
-      return ["import", "{}", $$2];
-      }default:      this._error(['IMPORT'], "Invalid Import");  }
-  } finally {
-    this.depth--;
+  this._match('IMPORT');
+  
+  // Lookahead to determine import type
+  if (this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
+    // IMPORT String → side-effect import
+    const str = this.parseString();
+    return ["import", "{}", str];
   }
+  
+  if (this.la.kind === '{') {
+    // IMPORT { ... } FROM String
+    this._match('{');
+    if (this.la.kind === '}') {
+      // Empty: IMPORT { } FROM String
+      this._match('}');
+      this._match('FROM');
+      const str = this.parseString();
+      return ["import", "{}", str];
+    } else {
+      // With specifiers: IMPORT { ImportSpecifierList OptComma } FROM String
+      const specifiers = this.parseImportSpecifierList();
+      if (this.la.kind === ',') {
+        this._match(',');  // OptComma
+      }
+      this._match('}');
+      this._match('FROM');
+      const str = this.parseString();
+      return ["import", specifiers, str];
+    }
+  }
+  
+  // Must be ImportDefaultSpecifier or ImportNamespaceSpecifier
+  if (this.la.kind === 'IMPORT_ALL') {
+    // IMPORT ImportNamespaceSpecifier FROM String
+    const ns = this.parseImportNamespaceSpecifier();
+    this._match('FROM');
+    const str = this.parseString();
+    return ["import", ns, str];
+  }
+  
+  // ImportDefaultSpecifier (Identifier)
+  const defaultSpec = this.parseImportDefaultSpecifier();
+  
+  // Check what comes next
+  if (this.la.kind === 'FROM') {
+    // Simple: IMPORT ImportDefaultSpecifier FROM String
+    this._match('FROM');
+    const str = this.parseString();
+    return ["import", defaultSpec, str];
+  }
+  
+  if (this.la.kind === ',') {
+    this._match(',');
+    
+    if (this.la.kind === 'IMPORT_ALL') {
+      // IMPORT ImportDefaultSpecifier , ImportNamespaceSpecifier FROM String
+      const ns = this.parseImportNamespaceSpecifier();
+      this._match('FROM');
+      const str = this.parseString();
+      return ["import", [defaultSpec, ns], str];
+    }
+    
+    if (this.la.kind === '{') {
+      // IMPORT ImportDefaultSpecifier , { ImportSpecifierList OptComma } FROM String
+      this._match('{');
+      const specifiers = this.parseImportSpecifierList();
+      if (this.la.kind === ',') {
+        this._match(',');
+      }
+      this._match('}');
+      this._match('FROM');
+      const str = this.parseString();
+      return ["import", [defaultSpec, specifiers], str];
+    }
+  }
+  
+  this._error(['STRING', 'STRING_START', '{', 'IMPORT_ALL', 'FROM'], "Invalid Import");
 }
 
 parseImportSpecifierList() {

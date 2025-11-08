@@ -879,6 +879,8 @@ class Generator
         func = @_generateForVariablesSpecial(rules)
       else if typeName is 'Switch'
         func = @_generateSwitchSpecial(rules)
+      else if typeName is 'Import'
+        func = @_generateImportSpecial(rules)
       else if typeName.endsWith('Tail') and rules.length is 3
         # Special handling for *Tail recursion patterns with 3 rules
         # (separator+element+tail, separator+tail, epsilon)
@@ -900,7 +902,7 @@ class Generator
       # Wrap with recursion depth tracking (but not for special handlers that already have structure)
       if func
         # Special handlers shouldn't be wrapped as they have custom logic
-        specialHandlers = ['Root', 'Expression', 'For', 'Def', 'Block', 'If', 'Assign', 'Assignable', 'Value', 'ArgList', 'ArgElisionList', 'Array', 'Object', 'AssignList', 'AssignObj', 'InterpolationChunk', 'Slice', 'Class', 'Param', 'Return', 'Yield', 'Try', 'ForVariables', 'Switch']
+        specialHandlers = ['Root', 'Expression', 'For', 'Def', 'Block', 'If', 'Assign', 'Assignable', 'Value', 'ArgList', 'ArgElisionList', 'Array', 'Object', 'AssignList', 'AssignObj', 'InterpolationChunk', 'Slice', 'Class', 'Param', 'Return', 'Yield', 'Try', 'ForVariables', 'Switch', 'Import']
         isSpecial = (specialHandlers.indexOf(typeName) >= 0) or typeName.endsWith('Tail')
         if isSpecial
           # console.log "NOT wrapping #{typeName} (special handler)"
@@ -2806,6 +2808,91 @@ class Generator
     this._match('OUTDENT');
     
     return ["switch", discriminant, whens, elseBlock];
+  }
+'''
+
+  # Special handling for Import (7 variants)
+  _generateImportSpecial: (rules) ->
+    # Import has 7 rules with different patterns
+    '''
+  parseImport() {
+    this._match('IMPORT');
+    
+    // Lookahead to determine import type
+    if (this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
+      // IMPORT String → side-effect import
+      const str = this.parseString();
+      return ["import", "{}", str];
+    }
+    
+    if (this.la.kind === '{') {
+      // IMPORT { ... } FROM String
+      this._match('{');
+      if (this.la.kind === '}') {
+        // Empty: IMPORT { } FROM String
+        this._match('}');
+        this._match('FROM');
+        const str = this.parseString();
+        return ["import", "{}", str];
+      } else {
+        // With specifiers: IMPORT { ImportSpecifierList OptComma } FROM String
+        const specifiers = this.parseImportSpecifierList();
+        if (this.la.kind === ',') {
+          this._match(',');  // OptComma
+        }
+        this._match('}');
+        this._match('FROM');
+        const str = this.parseString();
+        return ["import", specifiers, str];
+      }
+    }
+    
+    // Must be ImportDefaultSpecifier or ImportNamespaceSpecifier
+    if (this.la.kind === 'IMPORT_ALL') {
+      // IMPORT ImportNamespaceSpecifier FROM String
+      const ns = this.parseImportNamespaceSpecifier();
+      this._match('FROM');
+      const str = this.parseString();
+      return ["import", ns, str];
+    }
+    
+    // ImportDefaultSpecifier (Identifier)
+    const defaultSpec = this.parseImportDefaultSpecifier();
+    
+    // Check what comes next
+    if (this.la.kind === 'FROM') {
+      // Simple: IMPORT ImportDefaultSpecifier FROM String
+      this._match('FROM');
+      const str = this.parseString();
+      return ["import", defaultSpec, str];
+    }
+    
+    if (this.la.kind === ',') {
+      this._match(',');
+      
+      if (this.la.kind === 'IMPORT_ALL') {
+        // IMPORT ImportDefaultSpecifier , ImportNamespaceSpecifier FROM String
+        const ns = this.parseImportNamespaceSpecifier();
+        this._match('FROM');
+        const str = this.parseString();
+        return ["import", [defaultSpec, ns], str];
+      }
+      
+      if (this.la.kind === '{') {
+        // IMPORT ImportDefaultSpecifier , { ImportSpecifierList OptComma } FROM String
+        this._match('{');
+        const specifiers = this.parseImportSpecifierList();
+        if (this.la.kind === ',') {
+          this._match(',');
+        }
+        this._match('}');
+        this._match('FROM');
+        const str = this.parseString();
+        return ["import", [defaultSpec, specifiers], str];
+      }
+    }
+    
+    this._error(['STRING', 'STRING_START', '{', 'IMPORT_ALL', 'FROM'], "Invalid Import");
   }
 '''
 
