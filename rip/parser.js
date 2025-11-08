@@ -3671,14 +3671,30 @@ while (true) {
       }
       case '&&': {
         this._match('&&');
-        const right = this.parseValue();
+        let right;
+        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {
+          // Parse unary operation inline
+          const unaryOp = this._match(this.la.kind);
+          const unaryArg = this.parseValue();
+          right = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
+        } else {
+          right = this.parseValue();
+        }
         const [$$1, $$2, $$3] = [left, '&&', right];
         left = ["&&", left, right];
         break;
       }
       case '||': {
         this._match('||');
-        const right = this.parseValue();
+        let right;
+        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {
+          // Parse unary operation inline
+          const unaryOp = this._match(this.la.kind);
+          const unaryArg = this.parseValue();
+          right = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
+        } else {
+          right = this.parseValue();
+        }
         const [$$1, $$2, $$3] = [left, '||', right];
         left = ["||", left, right];
         break;

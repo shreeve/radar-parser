@@ -1084,10 +1084,22 @@ class Generator
         opCases.push "        this._match('#{op}');"
         # Assignment and COMPOUND_ASSIGN need full Expression (right-associative)
         # POST_IF and POST_UNLESS need Operation for complex conditions
+        # && and || need to handle unary operators (!, ~, typeof, etc.)
         if op is '=' or op is 'COMPOUND_ASSIGN'
           opCases.push "        const right = this.parseExpression();"  # Full expression for assignment
         else if op is 'POST_IF' or op is 'POST_UNLESS'
           opCases.push "        const right = this.parseOperation();"  # Operation for conditions
+        else if op is '&&' or op is '||'
+          # Handle unary operators inline for logical ops
+          opCases.push "        let right;"
+          opCases.push "        if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+' || this.la.kind === 'AWAIT') {"
+          opCases.push "          // Parse unary operation inline"
+          opCases.push "          const unaryOp = this._match(this.la.kind);"
+          opCases.push "          const unaryArg = this.parseValue();"
+          opCases.push "          right = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];"
+          opCases.push "        } else {"
+          opCases.push "          right = this.parseValue();"
+          opCases.push "        }"
         else
           opCases.push "        const right = this.parseValue();"  # Use Value for other ops
         opCases.push "        const [$$1, $$2, $$3] = [left, '#{op}', right];"
