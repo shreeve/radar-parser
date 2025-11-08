@@ -1071,10 +1071,13 @@ class Generator
       # Capture operator value for variable tokens (MATH, SHIFT, COMPARE, RELATION, COMPOUND_ASSIGN)
       if op is 'MATH' or op is 'SHIFT' or op is 'COMPARE' or op is 'RELATION' or op is 'COMPOUND_ASSIGN'
         opCases.push "        const op = this._match('#{op}');"  # Capture the actual operator
-        # Assignment and COMPOUND_ASSIGN need full Expression (right-associative)
+        # Assignment needs full Expression (right-associative)
+        # COMPOUND_ASSIGN uses Value to let FOR be seen at outer level
         # POST_IF and POST_UNLESS need Operation for complex conditions
-        if op is '=' or op is 'COMPOUND_ASSIGN'
+        if op is '='
           opCases.push "        const right = this.parseExpression();"  # Full expression for assignment
+        else if op is 'COMPOUND_ASSIGN'
+          opCases.push "        const right = this.parseValue();"  # Value to avoid consuming FOR
         else if op is 'POST_IF' or op is 'POST_UNLESS'
           opCases.push "        const right = this.parseOperation();"  # Operation for conditions
         else
@@ -1082,11 +1085,14 @@ class Generator
         opCases.push "        const [$$1, $$2, $$3] = [left, op, right];"  # Use captured op
       else
         opCases.push "        this._match('#{op}');"
-        # Assignment and COMPOUND_ASSIGN need full Expression (right-associative)
+        # Assignment needs full Expression (right-associative)
+        # COMPOUND_ASSIGN uses Value to let FOR be seen at outer level
         # POST_IF and POST_UNLESS need Operation for complex conditions
         # && and || need to handle unary operators (!, ~, typeof, etc.)
-        if op is '=' or op is 'COMPOUND_ASSIGN'
+        if op is '='
           opCases.push "        const right = this.parseExpression();"  # Full expression for assignment
+        else if op is 'COMPOUND_ASSIGN'
+          opCases.push "        const right = this.parseValue();"  # Value to avoid consuming FOR
         else if op is 'POST_IF' or op is 'POST_UNLESS'
           opCases.push "        const right = this.parseOperation();"  # Operation for conditions
         else if op is '&&' or op is '||'
@@ -1156,6 +1162,76 @@ class Generator
           const falseBranch = this.parseValue();
           left = ["?:", left, trueBranch, falseBranch];
           break;
+        }
+        case 'FOR': {
+          // Comprehension: Expression FOR ForVariables FORIN/FOROF/FORFROM Expression ...
+          this._match('FOR');
+          
+          // Check for AWAIT (for-from)
+          let isAsync = false;
+          if (this.la.kind === 'AWAIT') {
+            this._match('AWAIT');
+            isAsync = true;
+          }
+          
+          // Check for OWN (for-of)
+          let isOwn = false;
+          if (this.la.kind === 'OWN') {
+            this._match('OWN');
+            isOwn = true;
+          }
+          
+          // Parse variables
+          const vars = this.parseForVariables();
+          
+          // Determine loop type
+          let loopType;
+          if (this.la.kind === 'FORIN') {
+            this._match('FORIN');
+            loopType = 'for-in';
+          } else if (this.la.kind === 'FOROF') {
+            this._match('FOROF');
+            loopType = 'for-of';
+          } else if (this.la.kind === 'FORFROM') {
+            this._match('FORFROM');
+            loopType = 'for-from';
+          } else {
+            this._error(['FORIN', 'FOROF', 'FORFROM'], "Expected for loop type");
+          }
+          
+          // Parse iterable
+          const iterable = this.parseValue();  // Use Value to avoid cycles
+          
+          // Parse optional BY (step)
+          let step = null;
+          if (this.la.kind === 'BY') {
+            this._match('BY');
+            step = this.parseValue();
+          }
+          
+          // Parse optional WHEN (guard)
+          let guard = null;
+          if (this.la.kind === 'WHEN') {
+            this._match('WHEN');
+            guard = this.parseValue();
+          }
+          
+          // Build loop spec based on type
+          let loopSpec;
+          if (loopType === 'for-in') {
+            loopSpec = [loopType, vars, iterable, step];
+          } else if (loopType === 'for-of') {
+            loopSpec = [loopType, vars, iterable, isOwn];
+          } else {
+            loopSpec = [loopType, vars, iterable, isAsync, null];
+          }
+          
+          // Build comprehension
+          // NOTE: 'left' at this point is the full expression including any operators
+          // e.g., for "sum += i for i in arr", left is already ["+=" "sum" "i"]
+          const guards = guard ? [guard] : [];
+          left = ["comprehension", left, [loopSpec], guards];
+          return left;  // Comprehensions end the operation chain
         }
         default:
           return left;

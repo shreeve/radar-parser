@@ -3778,7 +3778,7 @@ while (true) {
       }
       case 'COMPOUND_ASSIGN': {
         const op = this._match('COMPOUND_ASSIGN');
-        const right = this.parseExpression();
+        const right = this.parseValue();
         const [$$1, $$2, $$3] = [left, op, right];
         left = [op, left, right];
         break;
@@ -3802,6 +3802,76 @@ while (true) {
         const falseBranch = this.parseValue();
         left = ["?:", left, trueBranch, falseBranch];
         break;
+      }
+      case 'FOR': {
+        // Comprehension: Expression FOR ForVariables FORIN/FOROF/FORFROM Expression ...
+        this._match('FOR');
+        
+        // Check for AWAIT (for-from)
+        let isAsync = false;
+        if (this.la.kind === 'AWAIT') {
+          this._match('AWAIT');
+          isAsync = true;
+        }
+        
+        // Check for OWN (for-of)
+        let isOwn = false;
+        if (this.la.kind === 'OWN') {
+          this._match('OWN');
+          isOwn = true;
+        }
+        
+        // Parse variables
+        const vars = this.parseForVariables();
+        
+        // Determine loop type
+        let loopType;
+        if (this.la.kind === 'FORIN') {
+          this._match('FORIN');
+          loopType = 'for-in';
+        } else if (this.la.kind === 'FOROF') {
+          this._match('FOROF');
+          loopType = 'for-of';
+        } else if (this.la.kind === 'FORFROM') {
+          this._match('FORFROM');
+          loopType = 'for-from';
+        } else {
+          this._error(['FORIN', 'FOROF', 'FORFROM'], "Expected for loop type");
+        }
+        
+        // Parse iterable
+        const iterable = this.parseValue();  // Use Value to avoid cycles
+        
+        // Parse optional BY (step)
+        let step = null;
+        if (this.la.kind === 'BY') {
+          this._match('BY');
+          step = this.parseValue();
+        }
+        
+        // Parse optional WHEN (guard)
+        let guard = null;
+        if (this.la.kind === 'WHEN') {
+          this._match('WHEN');
+          guard = this.parseValue();
+        }
+        
+        // Build loop spec based on type
+        let loopSpec;
+        if (loopType === 'for-in') {
+          loopSpec = [loopType, vars, iterable, step];
+        } else if (loopType === 'for-of') {
+          loopSpec = [loopType, vars, iterable, isOwn];
+        } else {
+          loopSpec = [loopType, vars, iterable, isAsync, null];
+        }
+        
+        // Build comprehension
+        // NOTE: 'left' at this point is the full expression including any operators
+        // e.g., for "sum += i for i in arr", left is already ["+=" "sum" "i"]
+        const guards = guard ? [guard] : [];
+        left = ["comprehension", left, [loopSpec], guards];
+        return left;  // Comprehensions end the operation chain
       }
       default:
         return left;
