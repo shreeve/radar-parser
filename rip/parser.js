@@ -879,21 +879,26 @@ switch (this.la.kind) {    case 'IDENTIFIER':
 }// NOTE: Simplified - omitted 11 accessor patterns
 
 parseReturn() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseReturn(). Possible grammar cycle.");
-}
-try {
-switch (this.la.kind) {    case 'RETURN':
-      {
-      const $$1 = this._match('RETURN');
-      return ["return"];
-      }default:      this._error(['RETURN'], "Invalid Return");  }
-  } finally {
-    this.depth--;
+  this._match('RETURN');
+  
+  // Check for indented object
+  if (this.la.kind === 'INDENT') {
+    this._match('INDENT');
+    const obj = this.parseObject();
+    this._match('OUTDENT');
+    return ["return", obj];
   }
+  
+  // Check if there's an expression (must check if we can start an Expression)
+  // Don't consume TERMINATOR, OUTDENT, or end markers
+  if (this.la.kind !== 'TERMINATOR' && this.la.kind !== 'OUTDENT' && 
+      this.la.kind !== '$end' && this.la.kind !== null) {
+    const expr = this.parseExpression();
+    return ["return", expr];
+  }
+  
+  // No expression - just return
+  return ["return"];
 }
 
 parseCode() {
