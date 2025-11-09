@@ -278,5 +278,9 @@ async function main(args) {
   process.exit(totalTests.fail > 0 ? 1 : 0);
 }
 
-// Run
-await main(process.argv.slice(2));
+// Run if called directly
+if (import.meta.main) {
+  await main(process.argv.slice(2));
+}
+
+export { test, code, fail };
