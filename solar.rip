@@ -838,6 +838,8 @@ class Generator
         func = @_generateExpressionSpecial(rules)
       else if typeName is 'For'
         func = @_generateForSpecial(rules)
+      else if typeName is 'Code'
+        func = @_generateCodeSpecial(rules)
       else if typeName is 'Def'
         func = @_generateDefSpecial(rules)
       else if typeName is 'Block'
@@ -1953,6 +1955,39 @@ class Generator
 
     // No else - just unless
     return ["unless", condition, thenBlock];
+  }
+'''
+
+  # Special handling for Code (arrow functions with Block or inline Operation)
+  _generateCodeSpecial: (rules) ->
+    # Code has 3 rules:
+    # 1. PARAM_START ParamList PARAM_END FuncGlyph Block → [4, 2, 5]
+    # 2. PARAM_START ParamList PARAM_END FuncGlyph Operation → [4, 2, 5] (inline)
+    # 3. FuncGlyph Block → [1, [], 2]
+    '''
+  parseCode() {
+    if (this.la.kind === 'PARAM_START') {
+      // With parameters
+      this._match('PARAM_START');
+      const params = this.parseParamList();
+      this._match('PARAM_END');
+      const arrow = this.parseFuncGlyph();
+      
+      // Check if Block (INDENT) or inline Operation
+      if (this.la.kind === 'INDENT') {
+        const block = this.parseBlock();
+        return [arrow, params, block];
+      } else {
+        // Inline operation (no INDENT in bracket contexts)
+        const operation = this.parseOperation();
+        return [arrow, params, operation];
+      }
+    } else {
+      // No parameters: -> body or => body
+      const arrow = this.parseFuncGlyph();
+      const block = this.parseBlock();
+      return [arrow, [], block];
+    }
   }
 '''
 

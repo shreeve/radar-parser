@@ -953,27 +953,28 @@ if (this.depth > this.maxDepth) {
   this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseCode(). Possible grammar cycle.");
 }
 try {
-switch (this.la.kind) {    case 'PARAM_START':
-      {
-      const $$1 = this._match('PARAM_START');
-      const $$2 = this.parseParamList();
-      const $$3 = this._match('PARAM_END');
-      const $$4 = this.parseFuncGlyph();
-      const $$5 = this.parseBlock();
-      return [$$4, $$2, $$5];
-      }
-    case '->':
-      {
-      const $$1 = this.parseFuncGlyph();
-      const $$2 = this.parseBlock();
-      return [$$1, [], $$2];
-      }
-    case '=>':
-      {
-      const $$1 = this.parseFuncGlyph();
-      const $$2 = this.parseBlock();
-      return [$$1, [], $$2];
-      }default:      this._error(['PARAM_START', '->', '=>'], "Invalid Code");  }
+  if (this.la.kind === 'PARAM_START') {
+    // With parameters
+    this._match('PARAM_START');
+    const params = this.parseParamList();
+    this._match('PARAM_END');
+    const arrow = this.parseFuncGlyph();
+    
+    // Check if Block (INDENT) or inline Operation
+    if (this.la.kind === 'INDENT') {
+      const block = this.parseBlock();
+      return [arrow, params, block];
+    } else {
+      // Inline operation (no INDENT in bracket contexts)
+      const operation = this.parseOperation();
+      return [arrow, params, operation];
+    }
+  } else {
+    // No parameters: -> body or => body
+    const arrow = this.parseFuncGlyph();
+    const block = this.parseBlock();
+    return [arrow, [], block];
+  }
   } finally {
     this.depth--;
   }

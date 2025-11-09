@@ -255,6 +255,7 @@ grammar =
   # Arrow functions: (params) -> body or (params) => body
   Code: [
     o 'PARAM_START ParamList PARAM_END FuncGlyph Block', '[4, 2, 5]'  # [arrow, params, body]
+    o 'PARAM_START ParamList PARAM_END FuncGlyph Operation', '[4, 2, 5]'  # Inline arrow (no block)
     o 'FuncGlyph Block'                                , '[1, [], 2]'
   ]
 
