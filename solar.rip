@@ -860,7 +860,7 @@ class Generator
         Export: @_generateExportSpecial
         ImportSpecifier: @_generateImportSpecifierSpecial
         ExportSpecifier: @_generateExportSpecifierSpecial
-      
+
       return specialHandlers[typeName]?.call(this, rules) if specialHandlers[typeName]
 
       # Pattern-based handlers (in priority order)
