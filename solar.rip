@@ -822,47 +822,46 @@ class Generator
     return null unless rules?.length
 
     try
-      # Dispatch table for special handlers (O(1) lookup!)
-      handler = switch typeName
-        when 'Root' then @_generateRootSpecial
-        when 'Expression' then @_generateExpressionSpecial
-        when 'For' then @_generateForSpecial
-        when 'Code' then @_generateCodeSpecial
-        when 'Def' then @_generateDefSpecial
-        when 'Block' then @_generateBlockSpecial
-        when 'If' then @_generateIfSpecial
-        when 'UnlessBlock' then @_generateUnlessBlockSpecial
-        when 'Assign' then @_generateAssignSpecial
-        when 'Assignable' then @_generateAssignableSpecial
-        when 'Value' then @_generateValueSpecial
-        when 'ArgList' then @_generateArgListSpecial
-        when 'ArgElisionList' then @_generateArgElisionListSpecial
-        when 'Array' then @_generateArraySpecial
-        when 'Object' then @_generateObjectSpecial
-        when 'AssignList' then @_generateAssignListSpecial
-        when 'AssignObj' then @_generateAssignObjSpecial
-        when 'InterpolationChunk' then @_generateInterpolationChunkSpecial
-        when 'Slice' then @_generateSliceSpecial
-        when 'Class' then @_generateClassSpecial
-        when 'Param' then @_generateParamSpecial
-        when 'Return' then @_generateReturnSpecial
-        when 'Statement' then @_generateStatementSpecial
-        when 'Yield' then @_generateYieldSpecial
-        when 'Try' then @_generateTrySpecial
-        when 'Catch' then @_generateCatchSpecial
-        when 'ForVariables' then @_generateForVariablesSpecial
-        when 'ForValue' then @_generateForValueSpecial
-        when 'Switch' then @_generateSwitchSpecial
-        when 'When' then @_generateWhenSpecial
-        when 'Invocation' then @_generateInvocationSpecial
-        when 'Arguments' then @_generateArgumentsSpecial
-        when 'Import' then @_generateImportSpecial
-        when 'Export' then @_generateExportSpecial
-        when 'ImportSpecifier' then @_generateImportSpecifierSpecial
-        when 'ExportSpecifier' then @_generateExportSpecifierSpecial
-        else null
-
-      return handler.call(this, rules) if handler
+      # Dispatch table for special handlers (O(1) hash lookup!)
+      specialHandlers =
+        Root: @_generateRootSpecial
+        Expression: @_generateExpressionSpecial
+        For: @_generateForSpecial
+        Code: @_generateCodeSpecial
+        Def: @_generateDefSpecial
+        Block: @_generateBlockSpecial
+        If: @_generateIfSpecial
+        UnlessBlock: @_generateUnlessBlockSpecial
+        Assign: @_generateAssignSpecial
+        Assignable: @_generateAssignableSpecial
+        Value: @_generateValueSpecial
+        ArgList: @_generateArgListSpecial
+        ArgElisionList: @_generateArgElisionListSpecial
+        Array: @_generateArraySpecial
+        Object: @_generateObjectSpecial
+        AssignList: @_generateAssignListSpecial
+        AssignObj: @_generateAssignObjSpecial
+        InterpolationChunk: @_generateInterpolationChunkSpecial
+        Slice: @_generateSliceSpecial
+        Class: @_generateClassSpecial
+        Param: @_generateParamSpecial
+        Return: @_generateReturnSpecial
+        Statement: @_generateStatementSpecial
+        Yield: @_generateYieldSpecial
+        Try: @_generateTrySpecial
+        Catch: @_generateCatchSpecial
+        ForVariables: @_generateForVariablesSpecial
+        ForValue: @_generateForValueSpecial
+        Switch: @_generateSwitchSpecial
+        When: @_generateWhenSpecial
+        Invocation: @_generateInvocationSpecial
+        Arguments: @_generateArgumentsSpecial
+        Import: @_generateImportSpecial
+        Export: @_generateExportSpecial
+        ImportSpecifier: @_generateImportSpecifierSpecial
+        ExportSpecifier: @_generateExportSpecifierSpecial
+      
+      return specialHandlers[typeName]?.call(this, rules) if specialHandlers[typeName]
 
       # Pattern-based handlers (in priority order)
       if typeName.endsWith('Tail') and rules.length is 3
