@@ -741,9 +741,6 @@ class Generator
         this.la = null;        // Current lookahead token
         this.lexer = null;     // Lexer instance
         this.yy = {};          // Shared state
-        this.depth = 0;        // Recursion depth tracking
-        this.maxDepth = 1000;  // Maximum recursion depth (prevent stack overflow)
-        this.trackDepth = false; // Depth tracking (off by default for speed)
       }
 
       // Initialize parser with input
@@ -921,17 +918,7 @@ class Generator
       else
         func = @_generateSwitchDispatch(typeName, rules)
 
-      # Wrap with recursion depth tracking (but not for special handlers that already have structure)
-      if func
-        # Special handlers shouldn't be wrapped as they have custom logic
-        specialHandlers = ['Root', 'Expression', 'For', 'Def', 'Block', 'If', 'Assign', 'Assignable', 'Value', 'ArgList', 'ArgElisionList', 'Array', 'Object', 'AssignList', 'AssignObj', 'InterpolationChunk', 'Slice', 'Class', 'Param', 'Return', 'Yield', 'Try', 'ForVariables', 'Switch', 'Import']
-        isSpecial = (specialHandlers.indexOf(typeName) >= 0) or typeName.endsWith('Tail')
-        if isSpecial
-          # console.log "NOT wrapping #{typeName} (special handler)"
-          return func
-        else
-          # console.log "Wrapping #{typeName} with depth tracking"
-          return @_wrapWithDepthTracking(typeName, func)
+      # Return function directly - no wrapping needed!
       return func
     catch error
       console.error "Error generating #{typeName}:", error.message
@@ -3482,46 +3469,6 @@ class Generator
     this._error(['IDENTIFIER', 'DEFAULT'], "Invalid ExportSpecifier");
   }
 '''
-
-  # Wrap parse function with recursion depth tracking
-  _wrapWithDepthTracking: (typeName, funcBody) ->
-    # Find where function body starts (after the opening brace)
-    funcPattern = "parse#{typeName}() {"
-    startIdx = funcBody.indexOf(funcPattern)
-    return funcBody if startIdx is -1
-
-    startIdx += funcPattern.length
-
-    # Find the last closing brace (function end)
-    lastBraceIdx = funcBody.lastIndexOf('}')
-    return funcBody if lastBraceIdx is -1
-
-    # Split into: before opening | body (without final }) | after (with final })
-    before = funcBody.substring(0, startIdx)
-    body = funcBody.substring(startIdx, lastBraceIdx)
-    after = funcBody.substring(lastBraceIdx + 1)  # Skip the } itself
-
-    # Wrap body with depth tracking
-    depthCheck = '''
-
-    // Recursion depth tracking (optional for performance)
-    if (this.trackDepth) {
-      this.depth++;
-      if (this.depth > this.maxDepth) {
-        this.depth--;
-        this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parse''' + typeName + '''(). Possible grammar cycle.");
-      }
-    }
-    try {'''
-
-    finallyBlock = '''
-    } finally {
-      if (this.trackDepth) this.depth--;
-    }
-  }'''
-
-    before + depthCheck + body + finallyBlock + after
-
 
   # Generate specialized dispatch when we have pass-through types
   # For rules like: Value → Assignable | Literal | Range | ...

@@ -5,9 +5,6 @@ class Parser {
     this.la = null;        // Current lookahead token
     this.lexer = null;     // Lexer instance
     this.yy = {};          // Shared state
-    this.depth = 0;        // Recursion depth tracking
-    this.maxDepth = 1000;  // Maximum recursion depth (prevent stack overflow)
-    this.trackDepth = false; // Depth tracking (off by default for speed)
   }
 
   // Initialize parser with input
@@ -63,46 +60,32 @@ _error(expected, msg) {
 // Token name lookup
 _tokenName(id) {
   const names = {"2":"error","7":"TERMINATOR","12":"STATEMENT","27":"DEF","29":"CALL_START","31":"CALL_END","35":"YIELD","36":"INDENT","38":"OUTDENT","39":"FROM","40":"IDENTIFIER","42":"PROPERTY","44":"NUMBER","46":"STRING","47":"STRING_START","49":"STRING_END","52":"INTERPOLATION_START","53":"INTERPOLATION_END","55":"REGEX","56":"REGEX_START","58":"REGEX_END","60":",","62":"JS","63":"UNDEFINED","64":"NULL","65":"BOOL","66":"INFINITY","67":"NAN","70":"=","74":":","77":"[","78":"]","79":"@","80":"...","85":"SUPER","87":"DYNAMIC_IMPORT","89":".","90":"?.","91":"::","92":"?::","93":"INDEX_START","94":"INDEX_END","95":"INDEX_SOAK","96":"RETURN","97":"PARAM_START","98":"PARAM_END","100":"->","101":"=>","111":"ES6_OPTIONAL_INDEX","115":"NEW_TARGET","116":"IMPORT_META","117":"{","118":"FOR","120":"FOROF","121":"}","122":"WHEN","123":"OWN","126":"CLASS","127":"EXTENDS","128":"IMPORT","134":"AS","135":"DEFAULT","136":"IMPORT_ALL","137":"EXPORT","139":"EXPORT_ALL","142":"ES6_OPTIONAL_CALL","143":"FUNC_EXIST","145":"THIS","150":"..","159":"TRY","161":"FINALLY","162":"CATCH","163":"THROW","164":"(","165":")","167":"WHILE","168":"UNTIL","170":"LOOP","171":"FORIN","172":"BY","173":"FORFROM","174":"AWAIT","177":"SWITCH","179":"ELSE","182":"LEADING_WHEN","184":"IF","186":"UNLESS","187":"UNARY","188":"DO","189":"DO_IIFE","190":"UNARY_MATH","191":"-","192":"+","193":"--","194":"++","195":"?","196":"MATH","197":"**","198":"SHIFT","199":"COMPARE","200":"&","201":"^","202":"|","203":"&&","204":"||","205":"??","206":"!?","207":"RELATION","208":"SPACE?","209":"POST_IF","210":"POST_UNLESS","211":"COMPOUND_ASSIGN"};
-  return names[id] || id;
-}
-
-// Create lexer (stub - override with actual lexer)
-_createLexer() {
-  if (this.lexer) return this.lexer;
-  throw new Error('No lexer provided. Set parser.lexer before calling parse()');
-}
-
-// ========================================================================
-// Parse Functions (one per nonterminal)
-// ========================================================================
-
-    parseRoot() {
-  // Root: prefer Body over ε unless at EOF
-  if (this.la.kind !== '$end') {
-    const $$1 = this.parseBody();
-    return ["program", ...$$1];
+    return names[id] || id;
   }
-  // ε production (empty program)
-  return ["program"];
-}
+
+  // Create lexer (stub - override with actual lexer)
+  _createLexer() {
+    if (this.lexer) return this.lexer;
+    throw new Error('No lexer provided. Set parser.lexer before calling parse()');
+  }
+
+  // ========================================================================
+  // Parse Functions (one per nonterminal)
+  // ========================================================================
+  parseRoot() {
+    // Root: prefer Body over ε unless at EOF
+    if (this.la.kind !== '$end') {
+      const $$1 = this.parseBody();
+      return ["program", ...$$1];
+    }
+    // ε production (empty program)
+    return ["program"];
+  }
 
 parseBody() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseBody(). Possible grammar cycle.");
-  }
-}
-try {
 // List pattern: Body → Line BodyTail
     const $$1 = this.parseLine();
-const $$2 = this.parseBodyTail();
-    return [$$1, ...$$2];  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
+const $$2 = this.parseBodyTail();return [$$1, ...$$2];  }
 
   parseBodyTail() {
     if (this.la.kind === 'TERMINATOR') {
@@ -126,16 +109,7 @@ const $$2 = this.parseBodyTail();
 
 
 parseLine() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseLine(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'IF': return this.parseExpression();
+    switch (this.la.kind) {    case 'IF': return this.parseExpression();
     case 'UNLESS': return this.parseExpression();
     case 'FOR': return this.parseExpression();
     case 'WHILE': return this.parseExpression();
@@ -185,147 +159,110 @@ switch (this.la.kind) {    case 'IF': return this.parseExpression();
     case 'IMPORT': return this.parseStatement();
     case 'EXPORT': return this.parseStatement();default:
   this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'THROW', 'IDENTIFIER', '@', '[', '{', 'NUMBER', 'JS', 'REGEX', 'REGEX_START', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', 'STRING', 'STRING_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', 'RETURN', 'STATEMENT', 'IMPORT', 'EXPORT'], "Invalid Line");
-  }
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
-
-parseStatement() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseStatement(). Possible grammar cycle.");
-  }
-}
-try {
-  switch (this.la.kind) {
-    case 'RETURN': {
-      const returnStmt = this.parseReturn();
-
-      // Check for postfix conditionals (return x if y, return unless z)
-      if (this.la.kind === 'POST_IF') {
-        this._match('POST_IF');
-        const condition = this.parseOperation();
-        return ["if", condition, [returnStmt]];
-      } else if (this.la.kind === 'POST_UNLESS') {
-        this._match('POST_UNLESS');
-        const condition = this.parseOperation();
-        return ["unless", condition, [returnStmt]];
-      }
-
-      return returnStmt;
     }
-    case 'STATEMENT': {
-      const stmt = this._match('STATEMENT');
+  }
 
-      // Check for postfix conditionals (break if x, continue unless y)
-      if (this.la.kind === 'POST_IF') {
-        this._match('POST_IF');
-        const condition = this.parseOperation();
-        return ["if", condition, [stmt]];
-      } else if (this.la.kind === 'POST_UNLESS') {
-        this._match('POST_UNLESS');
-        const condition = this.parseOperation();
-        return ["unless", condition, [stmt]];
+  parseStatement() {
+    switch (this.la.kind) {
+      case 'RETURN': {
+        const returnStmt = this.parseReturn();
+
+        // Check for postfix conditionals (return x if y, return unless z)
+        if (this.la.kind === 'POST_IF') {
+          this._match('POST_IF');
+          const condition = this.parseOperation();
+          return ["if", condition, [returnStmt]];
+        } else if (this.la.kind === 'POST_UNLESS') {
+          this._match('POST_UNLESS');
+          const condition = this.parseOperation();
+          return ["unless", condition, [returnStmt]];
+        }
+
+        return returnStmt;
       }
+      case 'STATEMENT': {
+        const stmt = this._match('STATEMENT');
 
-      // No postfix conditional - just return the statement
-      return stmt;
+        // Check for postfix conditionals (break if x, continue unless y)
+        if (this.la.kind === 'POST_IF') {
+          this._match('POST_IF');
+          const condition = this.parseOperation();
+          return ["if", condition, [stmt]];
+        } else if (this.la.kind === 'POST_UNLESS') {
+          this._match('POST_UNLESS');
+          const condition = this.parseOperation();
+          return ["unless", condition, [stmt]];
+        }
+
+        // No postfix conditional - just return the statement
+        return stmt;
+      }
+      case 'IMPORT':
+        return this.parseImport();
+      case 'EXPORT':
+        return this.parseExport();
+      default:
+        this._error(['RETURN', 'STATEMENT', 'IMPORT', 'EXPORT'], "Invalid Statement");
     }
-    case 'IMPORT':
-      return this.parseImport();
-    case 'EXPORT':
-      return this.parseExport();
-    default:
-      this._error(['RETURN', 'STATEMENT', 'IMPORT', 'EXPORT'], "Invalid Statement");
   }
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
 
-parseExpression() {
-  switch (this.la.kind) {
-    case 'IF':
-    case 'UNLESS':
-      return this.parseIf();
-    case 'FOR':
-      return this.parseFor();
-    case 'WHILE':
-    case 'UNTIL':
-    case 'LOOP':
-      return this.parseWhile();
-    case 'TRY':
-      return this.parseTry();
-    case 'SWITCH':
-      return this.parseSwitch();
-    case 'DEF':
-      return this.parseDef();
-    case 'CLASS':
-      return this.parseClass();
-    case 'PARAM_START':
-    case '->':
-    case '=>':
-      return this.parseCode();
-    case 'YIELD':
-      return this.parseYield();
-    case 'THROW':
-      return this.parseThrow();
-    default:
-      return this.parseOperation();
+  parseExpression() {
+    switch (this.la.kind) {
+      case 'IF':
+      case 'UNLESS':
+        return this.parseIf();
+      case 'FOR':
+        return this.parseFor();
+      case 'WHILE':
+      case 'UNTIL':
+      case 'LOOP':
+        return this.parseWhile();
+      case 'TRY':
+        return this.parseTry();
+      case 'SWITCH':
+        return this.parseSwitch();
+      case 'DEF':
+        return this.parseDef();
+      case 'CLASS':
+        return this.parseClass();
+      case 'PARAM_START':
+      case '->':
+      case '=>':
+        return this.parseCode();
+      case 'YIELD':
+        return this.parseYield();
+      case 'THROW':
+        return this.parseThrow();
+      default:
+        return this.parseOperation();
+    }
   }
-}
 
-parsePrimaryExpression() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parsePrimaryExpression(). Possible grammar cycle.");
-  }
-}
-try {
-    const $$1 = this.parseOperation();
-      return $$1;  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
+parsePrimaryExpression() {const $$1 = this.parseOperation();
+      return $$1;  }
 
-parseDef() {
-  // Parse common prefix
-  const $$1 = this._match('DEF');
-  const $$2 = this.parseIdentifier();
+  parseDef() {
+    // Parse common prefix
+    const $$1 = this._match('DEF');
+    const $$2 = this.parseIdentifier();
 
-  // Lookahead to decide which alternative
-  if (this.la.kind === 'CALL_START') {
-    // With params: DEF Identifier CALL_START ParamList CALL_END Block
-    const $$3 = this._match('CALL_START');
-    const $$4 = this.parseParamList();
-    const $$5 = this._match('CALL_END');
-    const $$6 = this.parseBlock();
-    return ["def", $$2, $$4, $$6];
-  } else {
-    // No params: DEF Identifier Block
-    const $$3 = this.parseBlock();
-    return ["def", $$2, [], $$3];
+    // Lookahead to decide which alternative
+    if (this.la.kind === 'CALL_START') {
+      // With params: DEF Identifier CALL_START ParamList CALL_END Block
+      const $$3 = this._match('CALL_START');
+      const $$4 = this.parseParamList();
+      const $$5 = this._match('CALL_END');
+      const $$6 = this.parseBlock();
+      return ["def", $$2, $$4, $$6];
+    } else {
+      // No params: DEF Identifier Block
+      const $$3 = this.parseBlock();
+      return ["def", $$2, [], $$3];
+    }
   }
-}
 
 parseExpressionLine() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseExpressionLine(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'PARAM_START':
+    switch (this.la.kind) {    case 'PARAM_START':
       {
       const $$1 = this.parseCodeLine();
       return $$1;
@@ -354,101 +291,63 @@ switch (this.la.kind) {    case 'PARAM_START':
       {
       const $$1 = this.parseOperationLine();
       return $$1;
-      }default:      this._error(['PARAM_START', '->', '=>', 'UNARY', 'DO', 'DO_IIFE'], "Invalid ExpressionLine");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
-
-parseYield() {
-  this._match('YIELD');
-
-  // Check for FROM (yield from)
-  if (this.la.kind === 'FROM') {
-    this._match('FROM');
-    const expr = this.parseExpression();
-    return ["yield-from", expr];
+      }      default:      this._error(['PARAM_START', '->', '=>', 'UNARY', 'DO', 'DO_IIFE'], "Invalid ExpressionLine");    }
   }
 
-  // Check for indented object
-  if (this.la.kind === 'INDENT') {
-    this._match('INDENT');
-    const obj = this.parseObject();
-    this._match('OUTDENT');
-    return ["yield", obj];
+  parseYield() {
+    this._match('YIELD');
+
+    // Check for FROM (yield from)
+    if (this.la.kind === 'FROM') {
+      this._match('FROM');
+      const expr = this.parseExpression();
+      return ["yield-from", expr];
+    }
+
+    // Check for indented object
+    if (this.la.kind === 'INDENT') {
+      this._match('INDENT');
+      const obj = this.parseObject();
+      this._match('OUTDENT');
+      return ["yield", obj];
+    }
+
+    // Check if there's an expression
+    if (this.la.kind !== 'TERMINATOR' && this.la.kind !== 'OUTDENT' &&
+        this.la.kind !== '$end' && this.la.kind !== null) {
+      const expr = this.parseExpression();
+      return ["yield", expr];
+    }
+
+    // No expression - just yield
+    return ["yield"];
   }
 
-  // Check if there's an expression
-  if (this.la.kind !== 'TERMINATOR' && this.la.kind !== 'OUTDENT' &&
-      this.la.kind !== '$end' && this.la.kind !== null) {
-    const expr = this.parseExpression();
-    return ["yield", expr];
+  parseBlock() {
+    // Parse INDENT
+    const $$1 = this._match('INDENT');
+
+    // Lookahead to decide which alternative
+    if (this.la.kind === 'OUTDENT') {
+      // Empty block: INDENT OUTDENT
+      const $$2 = this._match('OUTDENT');
+      return ["block"];
+    } else {
+      // Block with body: INDENT Body OUTDENT
+      const $$2 = this.parseBody();
+      const $$3 = this._match('OUTDENT');
+      return ["block", ...$$2];
+    }
   }
 
-  // No expression - just yield
-  return ["yield"];
-}
+parseIdentifier() {const $$1 = this._match('IDENTIFIER');
+      return $$1;  }
 
-parseBlock() {
-  // Parse INDENT
-  const $$1 = this._match('INDENT');
-
-  // Lookahead to decide which alternative
-  if (this.la.kind === 'OUTDENT') {
-    // Empty block: INDENT OUTDENT
-    const $$2 = this._match('OUTDENT');
-    return ["block"];
-  } else {
-    // Block with body: INDENT Body OUTDENT
-    const $$2 = this.parseBody();
-    const $$3 = this._match('OUTDENT');
-    return ["block", ...$$2];
-  }
-}
-
-parseIdentifier() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseIdentifier(). Possible grammar cycle.");
-  }
-}
-try {
-    const $$1 = this._match('IDENTIFIER');
-      return $$1;  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
-
-parseProperty() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseProperty(). Possible grammar cycle.");
-  }
-}
-try {
-    const $$1 = this._match('PROPERTY');
-      return $$1;  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
+parseProperty() {const $$1 = this._match('PROPERTY');
+      return $$1;  }
 
 parseAlphaNumeric() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseAlphaNumeric(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'NUMBER':
+    switch (this.la.kind) {    case 'NUMBER':
       {
       const $$1 = this._match('NUMBER');
       return $$1;
@@ -462,23 +361,11 @@ switch (this.la.kind) {    case 'NUMBER':
       {
       const $$1 = this.parseString();
       return $$1;
-      }default:      this._error(['NUMBER', 'STRING', 'STRING_START'], "Invalid AlphaNumeric");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error(['NUMBER', 'STRING', 'STRING_START'], "Invalid AlphaNumeric");    }
   }
-}
 
 parseString() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseString(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'STRING':
+    switch (this.la.kind) {    case 'STRING':
       {
       const $$1 = this._match('STRING');
       return $$1;
@@ -489,32 +376,16 @@ switch (this.la.kind) {    case 'STRING':
       const $$2 = this.parseInterpolations();
       const $$3 = this._match('STRING_END');
       return ["str", ...$$2];
-      }default:      this._error(['STRING', 'STRING_START'], "Invalid String");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error(['STRING', 'STRING_START'], "Invalid String");    }
   }
-}
 
 parseInterpolations() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseInterpolations(). Possible grammar cycle.");
-  }
-}
-try {
 // List pattern: Interpolations → InterpolationChunk InterpolationsTail
     const $$1 = this.parseInterpolationChunk();
-const $$2 = this.parseInterpolationsTail();
-    return [$$1, ...$$2];  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
+const $$2 = this.parseInterpolationsTail();return [$$1, ...$$2];  }
 
 parseInterpolationsTail() {
-switch (this.la.kind) {    case 'INTERPOLATION_START':
+    switch (this.la.kind) {    case 'INTERPOLATION_START':
       {
       const $$1 = this.parseInterpolationChunk();
       const $$2 = this.parseInterpolationsTail();
@@ -531,55 +402,46 @@ switch (this.la.kind) {    case 'INTERPOLATION_START':
       const $$1 = this.parseInterpolationChunk();
       const $$2 = this.parseInterpolationsTail();
       return [$$1, ...$$2];
-      }default:      // ε production
-      return [];  }
-}
-
-parseInterpolationChunk() {
-  // Check if it's a String
-  if (this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
-    return this.parseString();
+      }      default:      // ε production
+      return [];    }
   }
 
-  // Otherwise must be INTERPOLATION_START
-  if (this.la.kind === 'INTERPOLATION_START') {
-    this._match('INTERPOLATION_START');
-
-    // Check if empty interpolation (INTERPOLATION_END immediately)
-    if (this.la.kind === 'INTERPOLATION_END') {
-      this._match('INTERPOLATION_END');
-      return "";
+  parseInterpolationChunk() {
+    // Check if it's a String
+    if (this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
+      return this.parseString();
     }
 
-    // Check if indented body
-    if (this.la.kind === 'INDENT') {
-      this._match('INDENT');
+    // Otherwise must be INTERPOLATION_START
+    if (this.la.kind === 'INTERPOLATION_START') {
+      this._match('INTERPOLATION_START');
+
+      // Check if empty interpolation (INTERPOLATION_END immediately)
+      if (this.la.kind === 'INTERPOLATION_END') {
+        this._match('INTERPOLATION_END');
+        return "";
+      }
+
+      // Check if indented body
+      if (this.la.kind === 'INDENT') {
+        this._match('INDENT');
+        const body = this.parseBody();
+        this._match('OUTDENT');
+        this._match('INTERPOLATION_END');
+        return body;
+      }
+
+      // Otherwise parse Body directly
       const body = this.parseBody();
-      this._match('OUTDENT');
       this._match('INTERPOLATION_END');
       return body;
     }
 
-    // Otherwise parse Body directly
-    const body = this.parseBody();
-    this._match('INTERPOLATION_END');
-    return body;
+    this._error(['INTERPOLATION_START', 'STRING', 'STRING_START'], "Invalid InterpolationChunk");
   }
-
-  this._error(['INTERPOLATION_START', 'STRING', 'STRING_START'], "Invalid InterpolationChunk");
-}
 
 parseRegex() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseRegex(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'REGEX':
+    switch (this.la.kind) {    case 'REGEX':
       {
       const $$1 = this._match('REGEX');
       return $$1;
@@ -590,23 +452,11 @@ switch (this.la.kind) {    case 'REGEX':
       const $$2 = this.parseInvocation();
       const $$3 = this._match('REGEX_END');
       return ["regex", $$2];
-      }default:      this._error(['REGEX', 'REGEX_START'], "Invalid Regex");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error(['REGEX', 'REGEX_START'], "Invalid Regex");    }
   }
-}
 
 parseRegexWithIndex() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseRegexWithIndex(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'REGEX':
+    switch (this.la.kind) {    case 'REGEX':
       {
       const $$1 = this.parseRegex();
       return ["regex-index", $$1, null];
@@ -615,23 +465,11 @@ switch (this.la.kind) {    case 'REGEX':
       {
       const $$1 = this.parseRegex();
       return ["regex-index", $$1, null];
-      }default:      this._error(['REGEX', 'REGEX_START'], "Invalid RegexWithIndex");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error(['REGEX', 'REGEX_START'], "Invalid RegexWithIndex");    }
   }
-}
 
 parseLiteral() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseLiteral(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'NUMBER':
+    switch (this.la.kind) {    case 'NUMBER':
       {
       const $$1 = this.parseAlphaNumeric();
       return $$1;
@@ -685,119 +523,95 @@ switch (this.la.kind) {    case 'NUMBER':
       {
       const $$1 = this._match('NAN');
       return $$1;
-      }default:      this._error(['NUMBER', 'STRING', 'STRING_START', 'JS', 'REGEX', 'REGEX_START', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN'], "Invalid Literal");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
-
-parseAssign() {
-  // Parse Assignable
-  const lhs = this.parseAssignable();
-
-  // Match = token
-  this._match('=');
-
-  // Check for optional TERMINATOR or INDENT
-  if (this.la.kind === 'TERMINATOR') {
-    this._match('TERMINATOR');
-    const rhs = this.parseExpression();
-    return ["=", lhs, rhs];
-  } else if (this.la.kind === 'INDENT') {
-    this._match('INDENT');
-    const rhs = this.parseExpression();
-    this._match('OUTDENT');
-    return ["=", lhs, rhs];
-  } else {
-    // Simple assignment: Assignable = Expression
-    const rhs = this.parseExpression();
-    return ["=", lhs, rhs];
-  }
-}
-
-parseAssignObj() {
-  // Check for rest spread: {...rest}
-  if (this.la.kind === '...') {
-    return this.parseObjRestValue();
+      }      default:      this._error(['NUMBER', 'STRING', 'STRING_START', 'JS', 'REGEX', 'REGEX_START', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN'], "Invalid Literal");    }
   }
 
-  // Parse the key (ObjAssignable or SimpleObjAssignable)
-  let key;
-  if (this.la.kind === 'IDENTIFIER' || this.la.kind === 'PROPERTY' || this.la.kind === '@' ||
-      this.la.kind === '[' || this.la.kind === 'NUMBER' || this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
+  parseAssign() {
+    // Parse Assignable
+    const lhs = this.parseAssignable();
 
-    // For default values, we need SimpleObjAssignable
-    if (this.la.kind === 'IDENTIFIER' || this.la.kind === 'PROPERTY' || this.la.kind === '@') {
-      key = this.parseSimpleObjAssignable();
+    // Match = token
+    this._match('=');
+
+    // Check for optional TERMINATOR or INDENT
+    if (this.la.kind === 'TERMINATOR') {
+      this._match('TERMINATOR');
+      const rhs = this.parseExpression();
+      return ["=", lhs, rhs];
+    } else if (this.la.kind === 'INDENT') {
+      this._match('INDENT');
+      const rhs = this.parseExpression();
+      this._match('OUTDENT');
+      return ["=", lhs, rhs];
     } else {
-      key = this.parseObjAssignable();
-    }
-
-    // Check what follows the key
-    if (this.la.kind === ':') {
-      // Property with value: {a: 1}
-      this._match(':');
-      if (this.la.kind === 'INDENT') {
-        this._match('INDENT');
-        const value = this.parseExpression();
-        this._match('OUTDENT');
-        return [key, value, ":"];
-      } else {
-        const value = this.parseExpression();
-        return [key, value, ":"];
-      }
-    } else if (this.la.kind === '=') {
-      // Default value: {a = 5}
-      this._match('=');
-      if (this.la.kind === 'INDENT') {
-        this._match('INDENT');
-        const value = this.parseExpression();
-        this._match('OUTDENT');
-        return [key, value, "="];
-      } else {
-        const value = this.parseExpression();
-        return [key, value, "="];
-      }
-    } else {
-      // Property shorthand: {x}
-      return [key, key, null];
+      // Simple assignment: Assignable = Expression
+      const rhs = this.parseExpression();
+      return ["=", lhs, rhs];
     }
   }
 
-  this._error([], "Invalid AssignObj");
-}
+  parseAssignObj() {
+    // Check for rest spread: {...rest}
+    if (this.la.kind === '...') {
+      return this.parseObjRestValue();
+    }
+
+    // Parse the key (ObjAssignable or SimpleObjAssignable)
+    let key;
+    if (this.la.kind === 'IDENTIFIER' || this.la.kind === 'PROPERTY' || this.la.kind === '@' ||
+        this.la.kind === '[' || this.la.kind === 'NUMBER' || this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
+
+      // For default values, we need SimpleObjAssignable
+      if (this.la.kind === 'IDENTIFIER' || this.la.kind === 'PROPERTY' || this.la.kind === '@') {
+        key = this.parseSimpleObjAssignable();
+      } else {
+        key = this.parseObjAssignable();
+      }
+
+      // Check what follows the key
+      if (this.la.kind === ':') {
+        // Property with value: {a: 1}
+        this._match(':');
+        if (this.la.kind === 'INDENT') {
+          this._match('INDENT');
+          const value = this.parseExpression();
+          this._match('OUTDENT');
+          return [key, value, ":"];
+        } else {
+          const value = this.parseExpression();
+          return [key, value, ":"];
+        }
+      } else if (this.la.kind === '=') {
+        // Default value: {a = 5}
+        this._match('=');
+        if (this.la.kind === 'INDENT') {
+          this._match('INDENT');
+          const value = this.parseExpression();
+          this._match('OUTDENT');
+          return [key, value, "="];
+        } else {
+          const value = this.parseExpression();
+          return [key, value, "="];
+        }
+      } else {
+        // Property shorthand: {x}
+        return [key, key, null];
+      }
+    }
+
+    this._error([], "Invalid AssignObj");
+  }
 
 parseSimpleObjAssignable() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseSimpleObjAssignable(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'IDENTIFIER': return this.parseIdentifier();
+    switch (this.la.kind) {    case 'IDENTIFIER': return this.parseIdentifier();
     case 'PROPERTY': return this.parseProperty();
     case '@': return this.parseThisProperty();default:
   this._error(['IDENTIFIER', 'PROPERTY', '@'], "Invalid SimpleObjAssignable");
+    }
   }
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
 
 parseObjAssignable() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseObjAssignable(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'IDENTIFIER': return this.parseSimpleObjAssignable();
+    switch (this.la.kind) {    case 'IDENTIFIER': return this.parseSimpleObjAssignable();
     case 'PROPERTY': return this.parseSimpleObjAssignable();
     case '@': return this.parseSimpleObjAssignable();
     case '[':
@@ -811,44 +625,20 @@ switch (this.la.kind) {    case 'IDENTIFIER': return this.parseSimpleObjAssignab
     case 'STRING': return this.parseAlphaNumeric();
     case 'STRING_START': return this.parseAlphaNumeric();default:
   this._error(['IDENTIFIER', 'PROPERTY', '@', '[', 'NUMBER', 'STRING', 'STRING_START'], "Invalid ObjAssignable");
+    }
   }
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
 
 parseObjRestValue() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseObjRestValue(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case '...':
+    switch (this.la.kind) {    case '...':
       {
       const $$1 = this._match('...');
       const $$2 = this.parseSimpleObjAssignable();
       return ["...", $$2];
-      }default:      this._error(['...'], "Invalid ObjRestValue");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error(['...'], "Invalid ObjRestValue");    }
   }
-}
 
 parseObjSpreadExpr() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseObjSpreadExpr(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'IDENTIFIER':
+    switch (this.la.kind) {    case 'IDENTIFIER':
       {
       const $$1 = this.parseSimpleObjAssignable();
       return $$1;
@@ -889,84 +679,60 @@ switch (this.la.kind) {    case 'IDENTIFIER':
       const $$1 = this._match('DYNAMIC_IMPORT');
       const $$2 = this.parseArguments();
       return ["import", ...$$2];
-      }default:      this._error(['IDENTIFIER', 'PROPERTY', '@', '{', '(', 'SUPER', 'THIS', 'DYNAMIC_IMPORT'], "Invalid ObjSpreadExpr");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}// NOTE: Simplified - omitted 11 accessor patterns
+      }      default:      this._error(['IDENTIFIER', 'PROPERTY', '@', '{', '(', 'SUPER', 'THIS', 'DYNAMIC_IMPORT'], "Invalid ObjSpreadExpr");    }
+  }// NOTE: Simplified - omitted 11 accessor patterns
 
-parseReturn() {
-  this._match('RETURN');
+  parseReturn() {
+    this._match('RETURN');
 
-  // Check for indented object
-  if (this.la.kind === 'INDENT') {
-    this._match('INDENT');
-    const obj = this.parseObject();
-    this._match('OUTDENT');
-    return ["return", obj];
-  }
-
-  // Check if there's an expression (must check if we can start an Expression)
-  // Don't consume TERMINATOR, OUTDENT, POST_IF, POST_UNLESS, or end markers
-  if (this.la.kind !== 'TERMINATOR' && this.la.kind !== 'OUTDENT' &&
-      this.la.kind !== 'POST_IF' && this.la.kind !== 'POST_UNLESS' &&
-      this.la.kind !== '$end' && this.la.kind !== null) {
-    const expr = this.parseExpression();
-    return ["return", expr];
-  }
-
-  // No expression - just return
-  return ["return"];
-}
-
-parseCode() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseCode(). Possible grammar cycle.");
-  }
-}
-try {
-  if (this.la.kind === 'PARAM_START') {
-    // With parameters
-    this._match('PARAM_START');
-    const params = this.parseParamList();
-    this._match('PARAM_END');
-    const arrow = this.parseFuncGlyph();
-
-    // Check if Block (INDENT) or inline Operation
+    // Check for indented object
     if (this.la.kind === 'INDENT') {
-      const block = this.parseBlock();
-      return [arrow, params, block];
-    } else {
-      // Inline operation (no INDENT in bracket contexts)
-      const operation = this.parseOperation();
-      return [arrow, params, operation];
+      this._match('INDENT');
+      const obj = this.parseObject();
+      this._match('OUTDENT');
+      return ["return", obj];
     }
-  } else {
-    // No parameters: -> body or => body
-    const arrow = this.parseFuncGlyph();
-    const block = this.parseBlock();
-    return [arrow, [], block];
+
+    // Check if there's an expression (must check if we can start an Expression)
+    // Don't consume TERMINATOR, OUTDENT, POST_IF, POST_UNLESS, or end markers
+    if (this.la.kind !== 'TERMINATOR' && this.la.kind !== 'OUTDENT' &&
+        this.la.kind !== 'POST_IF' && this.la.kind !== 'POST_UNLESS' &&
+        this.la.kind !== '$end' && this.la.kind !== null) {
+      const expr = this.parseExpression();
+      return ["return", expr];
+    }
+
+    // No expression - just return
+    return ["return"];
   }
-  } finally {
-    if (this.trackDepth) this.depth--;
+
+  parseCode() {
+    if (this.la.kind === 'PARAM_START') {
+      // With parameters
+      this._match('PARAM_START');
+      const params = this.parseParamList();
+      this._match('PARAM_END');
+      const arrow = this.parseFuncGlyph();
+
+      // Check if Block (INDENT) or inline Operation
+      if (this.la.kind === 'INDENT') {
+        const block = this.parseBlock();
+        return [arrow, params, block];
+      } else {
+        // Inline operation (no INDENT in bracket contexts)
+        const operation = this.parseOperation();
+        return [arrow, params, operation];
+      }
+    } else {
+      // No parameters: -> body or => body
+      const arrow = this.parseFuncGlyph();
+      const block = this.parseBlock();
+      return [arrow, [], block];
+    }
   }
-}
 
 parseCodeLine() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseCodeLine(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'PARAM_START':
+    switch (this.la.kind) {    case 'PARAM_START':
       {
       const $$1 = this._match('PARAM_START');
       const $$2 = this.parseParamList();
@@ -986,23 +752,11 @@ switch (this.la.kind) {    case 'PARAM_START':
       const $$1 = this.parseFuncGlyph();
       const $$2 = this.parseLine();
       return [$$1, [], $$2];
-      }default:      this._error(['PARAM_START', '->', '=>'], "Invalid CodeLine");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error(['PARAM_START', '->', '=>'], "Invalid CodeLine");    }
   }
-}
 
 parseFuncGlyph() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseFuncGlyph(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case '->':
+    switch (this.la.kind) {    case '->':
       {
       const $$1 = this._match('->');
       return $$1;
@@ -1011,44 +765,20 @@ switch (this.la.kind) {    case '->':
       {
       const $$1 = this._match('=>');
       return $$1;
-      }default:      this._error(['->', '=>'], "Invalid FuncGlyph");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error(['->', '=>'], "Invalid FuncGlyph");    }
   }
-}
 
 parseOptComma() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseOptComma(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case ',':
+    switch (this.la.kind) {    case ',':
       {
       const $$1 = this._match(',');
       return $$1;
-      }default:      // ε production
-      return null;  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      // ε production
+      return null;    }
   }
-}
 
 parseParamList() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseParamList(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'IDENTIFIER':
+    switch (this.la.kind) {    case 'IDENTIFIER':
       {
       const $$1 = this.parseParam();
       const $$2 = this.parseParamListTail();
@@ -1085,15 +815,12 @@ switch (this.la.kind) {    case 'IDENTIFIER':
       const $$3 = this.parseOptComma();
       const $$4 = this._match('OUTDENT');
       return $$2;
-      }default:      // ε production
-      return [];  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      // ε production
+      return [];    }
   }
-}
 
 parseParamListTail() {
-switch (this.la.kind) {    case ',':
+    switch (this.la.kind) {    case ',':
       {
       const $$1 = this._match(',');
       const $$2 = this.parseParam();
@@ -1116,90 +843,56 @@ switch (this.la.kind) {    case ',':
       const $$4 = this.parseOptComma();
       const $$5 = this._match('OUTDENT');
       return [...$$3];
-      }default:      // ε production
-      return [];  }
-}
+      }      default:      // ε production
+      return [];    }
+  }
 
-parseParam() {
-  // Check for ... (rest or expansion)
-  if (this.la.kind === '...') {
-    this._match('...');
+  parseParam() {
+    // Check for ... (rest or expansion)
+    if (this.la.kind === '...') {
+      this._match('...');
 
-    // Check if there's a ParamVar after (rest param) or just expansion
-    if (this.la.kind === 'IDENTIFIER' || this.la.kind === '@' || this.la.kind === '[' || this.la.kind === '{') {
-      const paramVar = this.parseParamVar();
-      return ["rest", paramVar];
-    } else {
-      return ["expansion"];
+      // Check if there's a ParamVar after (rest param) or just expansion
+      if (this.la.kind === 'IDENTIFIER' || this.la.kind === '@' || this.la.kind === '[' || this.la.kind === '{') {
+        const paramVar = this.parseParamVar();
+        return ["rest", paramVar];
+      } else {
+        return ["expansion"];
+      }
     }
+
+    // Otherwise parse ParamVar
+    const paramVar = this.parseParamVar();
+
+    // Check for default value
+    if (this.la.kind === '=') {
+      this._match('=');
+      const defaultExpr = this.parseExpression();
+      return ["default", paramVar, defaultExpr];
+    }
+
+    return paramVar;
   }
-
-  // Otherwise parse ParamVar
-  const paramVar = this.parseParamVar();
-
-  // Check for default value
-  if (this.la.kind === '=') {
-    this._match('=');
-    const defaultExpr = this.parseExpression();
-    return ["default", paramVar, defaultExpr];
-  }
-
-  return paramVar;
-}
 
 parseParamVar() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseParamVar(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'IDENTIFIER': return this.parseIdentifier();
+    switch (this.la.kind) {    case 'IDENTIFIER': return this.parseIdentifier();
     case '@': return this.parseThisProperty();
     case '[': return this.parseArray();
     case '{': return this.parseObject();default:
   this._error(['IDENTIFIER', '@', '[', '{'], "Invalid ParamVar");
+    }
   }
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
 
-parseSplat() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseSplat(). Possible grammar cycle.");
-  }
-}
-try {
-    const $$1 = this._match('...');
+parseSplat() {const $$1 = this._match('...');
       const $$2 = this.parseExpression();
-      return ["...", $$2];  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
+      return ["...", $$2];  }
 
-parseSimpleAssignable() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseSimpleAssignable(). Possible grammar cycle.");
-  }
-}
-try {
-  // Accessor chain with full iterative loop
-  let base;
+  parseSimpleAssignable() {
+    // Accessor chain with full iterative loop
+    let base;
 
-  // Parse base case
-  switch (this.la.kind) {    case 'IDENTIFIER':
+    // Parse base case
+    switch (this.la.kind) {    case 'IDENTIFIER':
       {
       const $$1 = this._match('IDENTIFIER');
       base = $$1;;
@@ -1212,11 +905,11 @@ try {
       break;
       }default:
   this._error([], "Invalid SimpleAssignable");
-}
+    }
 
-// Iterate through accessors
-while (true) {
-  switch (this.la.kind) {      case '.':
+    // Iterate through accessors
+    while (true) {
+      switch (this.la.kind) {      case '.':
         this._match('.');
         const prop = this.parseProperty();
         base = ['.', base, prop];
@@ -1294,111 +987,122 @@ while (true) {
         const soakIndex = this.parseExpression();
         this._match('INDEX_END');
         base = ['?[]', base, soakIndex];
-        break;      default:
-        return base;
+        break;        default:
+          return base;
+      }
     }
   }
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
 
-parseAssignable() {
-  switch (this.la.kind) {
-    case 'IDENTIFIER':
-    case '@':
-      return this.parseSimpleAssignable();
-    case '[':
-      return this.parseArray();
-    case '{':
-      return this.parseObject();
-    default:
-      this._error(['IDENTIFIER', '@', '[', '{'], "Invalid Assignable");
+  parseAssignable() {
+    switch (this.la.kind) {
+      case 'IDENTIFIER':
+      case '@':
+        return this.parseSimpleAssignable();
+      case '[':
+        return this.parseArray();
+      case '{':
+        return this.parseObject();
+      default:
+        this._error(['IDENTIFIER', '@', '[', '{'], "Invalid Assignable");
+    }
   }
-}
 
-parseValue() {
-  // Parse base value
-  let base;
-  switch (this.la.kind) {
-    case 'IDENTIFIER':
-    case '{':
-      base = this.parseAssignable();
-      break;
-    case 'SUPER':
-      // SUPER can be: super.prop, super[expr], or super(args)
-      // Consume token and check what follows to determine type
-      this._match('SUPER');
-      base = "super";  // Base case
-      break;
-    case 'DYNAMIC_IMPORT':
-      // DYNAMIC_IMPORT Arguments → parse as invocation, then handle accessors
-      base = this.parseInvocation();
-      break;
-    case 'DO_IIFE':
-      base = this.parseDoIife();
-      break;
-    case '@':
-      // Bare @ alone means "this", but @ followed by more is @property
-      this._match('@');
-      if (this.la.kind === 'PROPERTY') {
-        // @property - parse as this.property
-        const prop = this.parseProperty();
-        base = ['.', 'this', prop];
-      } else {
-        // Bare @ means "this"
+  parseValue() {
+    // Parse base value
+    let base;
+    switch (this.la.kind) {
+      case 'IDENTIFIER':
+      case '{':
+        base = this.parseAssignable();
+        break;
+      case 'SUPER':
+        // SUPER can be: super.prop, super[expr], or super(args)
+        // Consume token and check what follows to determine type
+        this._match('SUPER');
+        base = "super";  // Base case
+        break;
+      case 'DYNAMIC_IMPORT':
+        // DYNAMIC_IMPORT Arguments → parse as invocation, then handle accessors
+        base = this.parseInvocation();
+        break;
+      case 'DO_IIFE':
+        base = this.parseDoIife();
+        break;
+      case '@':
+        // Bare @ alone means "this", but @ followed by more is @property
+        this._match('@');
+        if (this.la.kind === 'PROPERTY') {
+          // @property - parse as this.property
+          const prop = this.parseProperty();
+          base = ['.', 'this', prop];
+        } else {
+          // Bare @ means "this"
+          base = "this";
+        }
+        break;
+      case 'THIS':
+        // THIS keyword maps to "this"
+        this._match('THIS');
         base = "this";
-      }
-      break;
-    case 'THIS':
-      // THIS keyword maps to "this"
-      this._match('THIS');
-      base = "this";
-      break;
-    case 'NEW_TARGET':
-    case 'IMPORT_META':
-      base = this.parseMetaProperty();
-      break;
-    case '[':
-      // Could be Array or Range - try Range first (it's more specific)
-      // Range: [ Expression .. Expression ]
-      // Array: [ ... ]
-      // We need to lookahead to distinguish, but for now just try Array
-      // (Range will be handled if Array sees .. or ...)
-      base = this.parseAssignable();
-      break;
-    case '(':
-      // Could be Parenthetical or Assignable with paren
-      base = this.parseParenthetical();
-      break;
-    case 'NUMBER':
-    case 'STRING':
-    case 'STRING_START':
-    case 'JS':
-    case 'UNDEFINED':
-    case 'NULL':
-    case 'BOOL':
-    case 'INFINITY':
-    case 'NAN':
-    case 'REGEX':
-    case 'REGEX_START':
-      base = this.parseLiteral();
-      break;
-    default:
-      this._error([], "Invalid Value");
-  }
+        break;
+      case 'NEW_TARGET':
+      case 'IMPORT_META':
+        base = this.parseMetaProperty();
+        break;
+      case '[':
+        // Could be Array or Range - try Range first (it's more specific)
+        // Range: [ Expression .. Expression ]
+        // Array: [ ... ]
+        // We need to lookahead to distinguish, but for now just try Array
+        // (Range will be handled if Array sees .. or ...)
+        base = this.parseAssignable();
+        break;
+      case '(':
+        // Could be Parenthetical or Assignable with paren
+        base = this.parseParenthetical();
+        break;
+      case 'NUMBER':
+      case 'STRING':
+      case 'STRING_START':
+      case 'JS':
+      case 'UNDEFINED':
+      case 'NULL':
+      case 'BOOL':
+      case 'INFINITY':
+      case 'NAN':
+      case 'REGEX':
+      case 'REGEX_START':
+        base = this.parseLiteral();
+        break;
+      default:
+        this._error([], "Invalid Value");
+    }
 
-  // Handle function calls and accessors iteratively
-  while (true) {
-    if (this.la.kind === 'CALL_START' || this.la.kind === 'FUNC_EXIST' || this.la.kind === 'ES6_OPTIONAL_CALL') {
-      // Function call
-      let funcExist = null;
-      if (this.la.kind === 'FUNC_EXIST') {
-        this._match('FUNC_EXIST');
-        funcExist = true;
-      } else if (this.la.kind === 'ES6_OPTIONAL_CALL') {
-        this._match('ES6_OPTIONAL_CALL');
-        // After ES6_OPTIONAL_CALL (?.), there's still a CALL_START to match
+    // Handle function calls and accessors iteratively
+    while (true) {
+      if (this.la.kind === 'CALL_START' || this.la.kind === 'FUNC_EXIST' || this.la.kind === 'ES6_OPTIONAL_CALL') {
+        // Function call
+        let funcExist = null;
+        if (this.la.kind === 'FUNC_EXIST') {
+          this._match('FUNC_EXIST');
+          funcExist = true;
+        } else if (this.la.kind === 'ES6_OPTIONAL_CALL') {
+          this._match('ES6_OPTIONAL_CALL');
+          // After ES6_OPTIONAL_CALL (?.), there's still a CALL_START to match
+          this._match('CALL_START');
+          let args = [];
+          if (this.la.kind !== 'CALL_END') {
+            args = this.parseArgList();
+            if (this.la.kind === ',') {
+              this._match(',');  // Optional trailing comma
+            }
+          }
+          this._match('CALL_END');
+          base = ["optcall", base, ...args];
+          continue;
+        }
+
+        // Parse Arguments manually (CALL_START ... CALL_END)
         this._match('CALL_START');
         let args = [];
         if (this.la.kind !== 'CALL_END') {
@@ -1408,156 +1112,121 @@ parseValue() {
           }
         }
         this._match('CALL_END');
-        base = ["optcall", base, ...args];
-        continue;
-      }
 
-      // Parse Arguments manually (CALL_START ... CALL_END)
-      this._match('CALL_START');
-      let args = [];
-      if (this.la.kind !== 'CALL_END') {
-        args = this.parseArgList();
-        if (this.la.kind === ',') {
-          this._match(',');  // Optional trailing comma
-        }
-      }
-      this._match('CALL_END');
-
-      base = funcExist ? ["?call", base, ...args] : [base, ...args];
-    } else if (this.la.kind === '.') {
-      // Property access: value.property
-      this._match('.');
-      const prop = this.parseProperty();
-      base = ['.', base, prop];
-    } else if (this.la.kind === '?.') {
-      // Optional property access: value?.property
-      this._match('?.');
-      const optProp = this.parseProperty();
-      base = ['?.', base, optProp];
-    } else if (this.la.kind === '::') {
-      // Prototype access: value::property or value::
-      this._match('::');
-      if (this.la.kind === 'PROPERTY') {
-        const protoProp = this.parseProperty();
-        base = ['::', base, protoProp];
-      } else {
-        base = ['::', base, 'prototype'];
-      }
-    } else if (this.la.kind === '?::') {
-      // Optional prototype access: value?::property or value?::
-      this._match('?::');
-      if (this.la.kind === 'PROPERTY') {
-        const optProtoProp = this.parseProperty();
-        base = ['?::', base, optProtoProp];
-      } else {
-        base = ['?::', base, 'prototype'];
-      }
-    } else if (this.la.kind === 'INDEX_START') {
-      // Array indexing, slicing, or regex indexing: value[index] or value[start..end] or value[/regex/, capture]
-      this._match('INDEX_START');
-
-      // Check for regex indexing: value[/pattern/] or value[/pattern/, n]
-      if (this.la.kind === 'REGEX' || this.la.kind === 'REGEX_START') {
-        const regex = this.parseRegex();
-
-        // Check for capture group number: [/pattern/, 1]
-        if (this.la.kind === ',') {
-          this._match(',');
-          const captureNum = this.parseExpression();
-          this._match('INDEX_END');
-          // SimpleAssignable rule action: [$3[0], $1, ...$3.slice(1)]
-          // Where $3 is ["regex-index", regex, captureNum]
-          // Result: ["regex-index", base, regex, captureNum]
-          base = ["regex-index", base, regex, captureNum];
+        base = funcExist ? ["?call", base, ...args] : [base, ...args];
+      } else if (this.la.kind === '.') {
+        // Property access: value.property
+        this._match('.');
+        const prop = this.parseProperty();
+        base = ['.', base, prop];
+      } else if (this.la.kind === '?.') {
+        // Optional property access: value?.property
+        this._match('?.');
+        const optProp = this.parseProperty();
+        base = ['?.', base, optProp];
+      } else if (this.la.kind === '::') {
+        // Prototype access: value::property or value::
+        this._match('::');
+        if (this.la.kind === 'PROPERTY') {
+          const protoProp = this.parseProperty();
+          base = ['::', base, protoProp];
         } else {
-          // No capture number: [/pattern/]
-          this._match('INDEX_END');
-          // Result: ["regex-index", base, regex, null]
-          base = ["regex-index", base, regex, null];
+          base = ['::', base, 'prototype'];
         }
-      } else if (this.la.kind === '..' || this.la.kind === '...') {
-        // Slice without start: [..3] or [...3]
-        const slice = this.parseSlice();
-        this._match('INDEX_END');
-        base = ['[]', base, slice];
-      } else {
-        const index = this.parseExpression();
-        // Check if it's a slice: [1..3] or [1...3]
-        if (this.la.kind === '..' || this.la.kind === '...') {
-          // It's a slice! Parse as Slice
-          const dots = this.parseRangeDots();
-          let endExpr = null;
-          if (this.la.kind !== 'INDEX_END') {
-            endExpr = this.parseExpression();
+      } else if (this.la.kind === '?::') {
+        // Optional prototype access: value?::property or value?::
+        this._match('?::');
+        if (this.la.kind === 'PROPERTY') {
+          const optProtoProp = this.parseProperty();
+          base = ['?::', base, optProtoProp];
+        } else {
+          base = ['?::', base, 'prototype'];
+        }
+      } else if (this.la.kind === 'INDEX_START') {
+        // Array indexing, slicing, or regex indexing: value[index] or value[start..end] or value[/regex/, capture]
+        this._match('INDEX_START');
+
+        // Check for regex indexing: value[/pattern/] or value[/pattern/, n]
+        if (this.la.kind === 'REGEX' || this.la.kind === 'REGEX_START') {
+          const regex = this.parseRegex();
+
+          // Check for capture group number: [/pattern/, 1]
+          if (this.la.kind === ',') {
+            this._match(',');
+            const captureNum = this.parseExpression();
+            this._match('INDEX_END');
+            // SimpleAssignable rule action: [$3[0], $1, ...$3.slice(1)]
+            // Where $3 is ["regex-index", regex, captureNum]
+            // Result: ["regex-index", base, regex, captureNum]
+            base = ["regex-index", base, regex, captureNum];
+          } else {
+            // No capture number: [/pattern/]
+            this._match('INDEX_END');
+            // Result: ["regex-index", base, regex, null]
+            base = ["regex-index", base, regex, null];
           }
+        } else if (this.la.kind === '..' || this.la.kind === '...') {
+          // Slice without start: [..3] or [...3]
+          const slice = this.parseSlice();
           this._match('INDEX_END');
-          base = ['[]', base, [dots, index, endExpr]];
+          base = ['[]', base, slice];
         } else {
-          // Simple index
-          this._match('INDEX_END');
-          base = ['[]', base, index];
+          const index = this.parseExpression();
+          // Check if it's a slice: [1..3] or [1...3]
+          if (this.la.kind === '..' || this.la.kind === '...') {
+            // It's a slice! Parse as Slice
+            const dots = this.parseRangeDots();
+            let endExpr = null;
+            if (this.la.kind !== 'INDEX_END') {
+              endExpr = this.parseExpression();
+            }
+            this._match('INDEX_END');
+            base = ['[]', base, [dots, index, endExpr]];
+          } else {
+            // Simple index
+            this._match('INDEX_END');
+            base = ['[]', base, index];
+          }
         }
+      } else if (this.la.kind === 'INDEX_SOAK') {
+        // Optional indexing: value?[index]
+        this._match('INDEX_SOAK');
+        this._match('INDEX_START');
+        const soakIndex = this.parseExpression();
+        this._match('INDEX_END');
+        base = ['?[]', base, soakIndex];
+      } else if (this.la.kind === 'ES6_OPTIONAL_INDEX') {
+        // ES6 optional indexing: value?.[index]
+        this._match('ES6_OPTIONAL_INDEX');
+        this._match('INDEX_START');
+        const optIndex = this.parseExpression();
+        this._match('INDEX_END');
+        base = ['optindex', base, optIndex];
+      } else if (this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
+        // Tagged template: tag`template` or tag"string"
+        const str = this.parseString();
+        base = ["tagged-template", base, str];
+      } else {
+        // No more accessors or calls
+        break;
       }
-    } else if (this.la.kind === 'INDEX_SOAK') {
-      // Optional indexing: value?[index]
-      this._match('INDEX_SOAK');
-      this._match('INDEX_START');
-      const soakIndex = this.parseExpression();
-      this._match('INDEX_END');
-      base = ['?[]', base, soakIndex];
-    } else if (this.la.kind === 'ES6_OPTIONAL_INDEX') {
-      // ES6 optional indexing: value?.[index]
-      this._match('ES6_OPTIONAL_INDEX');
-      this._match('INDEX_START');
-      const optIndex = this.parseExpression();
-      this._match('INDEX_END');
-      base = ['optindex', base, optIndex];
-    } else if (this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
-      // Tagged template: tag`template` or tag"string"
-      const str = this.parseString();
-      base = ["tagged-template", base, str];
-    } else {
-      // No more accessors or calls
-      break;
     }
-  }
 
-  return base;
-}
+    return base;
+  }
 
 parseSuper() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseSuper(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'SUPER':
+    switch (this.la.kind) {    case 'SUPER':
       {
       const $$1 = this._match('SUPER');
       const $$2 = this._match('.');
       const $$3 = this._match('PROPERTY');
       return [".", "super", $$3];
-      }default:      this._error(['SUPER'], "Invalid Super");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error(['SUPER'], "Invalid Super");    }
   }
-}
 
 parseMetaProperty() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseMetaProperty(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'NEW_TARGET':
+    switch (this.la.kind) {    case 'NEW_TARGET':
       {
       const $$1 = this._match('NEW_TARGET');
       const $$2 = this._match('.');
@@ -1570,79 +1239,76 @@ switch (this.la.kind) {    case 'NEW_TARGET':
       const $$2 = this._match('.');
       const $$3 = this._match('PROPERTY');
       return [".", "import", $$3];
-      }default:      this._error(['NEW_TARGET', 'IMPORT_META'], "Invalid MetaProperty");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
-
-parseObject() {
-  this._match('{');
-
-  // Check for empty object
-  if (this.la.kind === '}') {
-    this._match('}');
-    return ["object"];
+      }      default:      this._error(['NEW_TARGET', 'IMPORT_META'], "Invalid MetaProperty");    }
   }
 
-  // Parse object properties
-  const list = this.parseAssignList();
+  parseObject() {
+    this._match('{');
 
-  // Optional trailing comma
-  if (this.la.kind === ',') {
-    this._match(',');
-  }
-
-  this._match('}');
-  return ["object", ...list];
-}
-
-parseAssignList() {
-  // Check for empty object
-  if (this.la.kind === '}' || this.la.kind === 'OUTDENT') {
-    return [];  // Empty object
-  }
-
-  // Check for INDENT case (multiline)
-  if (this.la.kind === 'INDENT') {
-    this._match('INDENT');
-    const list = this.parseAssignList();  // Recursive for multiline
-    if (this.la.kind === ',') {
-      this._match(',');  // Optional trailing comma
+    // Check for empty object
+    if (this.la.kind === '}') {
+      this._match('}');
+      return ["object"];
     }
-    this._match('OUTDENT');
+
+    // Parse object properties
+    const list = this.parseAssignList();
+
+    // Optional trailing comma
+    if (this.la.kind === ',') {
+      this._match(',');
+    }
+
+    this._match('}');
+    return ["object", ...list];
+  }
+
+  parseAssignList() {
+    // Check for empty object
+    if (this.la.kind === '}' || this.la.kind === 'OUTDENT') {
+      return [];  // Empty object
+    }
+
+    // Check for INDENT case (multiline)
+    if (this.la.kind === 'INDENT') {
+      this._match('INDENT');
+      const list = this.parseAssignList();  // Recursive for multiline
+      if (this.la.kind === ',') {
+        this._match(',');  // Optional trailing comma
+      }
+      this._match('OUTDENT');
+      return list;
+    }
+
+    // Parse first property
+    const list = [];
+    list.push(this.parseAssignObj());
+
+    // Parse remaining properties
+    while (this.la.kind === ',' || this.la.kind === 'TERMINATOR') {
+      if (this.la.kind === 'TERMINATOR') {
+        // Multiline within list (newline-separated properties)
+        this._match('TERMINATOR');
+        if (this.la.kind === '}' || this.la.kind === 'OUTDENT') {
+          break;  // End of list
+        }
+        list.push(this.parseAssignObj());
+      } else {
+        // Comma-separated properties
+        this._match(',');
+        // Check for trailing comma
+        if (this.la.kind === '}' || this.la.kind === 'OUTDENT') {
+          break;  // Trailing comma before end
+        }
+        list.push(this.parseAssignObj());
+      }
+    }
+
     return list;
   }
 
-  // Parse first property
-  const list = [];
-  list.push(this.parseAssignObj());
-
-  // Parse remaining properties
-  while (this.la.kind === ',' || this.la.kind === 'TERMINATOR') {
-    if (this.la.kind === 'TERMINATOR') {
-      // Multiline within list (newline-separated properties)
-      this._match('TERMINATOR');
-      if (this.la.kind === '}' || this.la.kind === 'OUTDENT') {
-        break;  // End of list
-      }
-      list.push(this.parseAssignObj());
-    } else {
-      // Comma-separated properties
-      this._match(',');
-      // Check for trailing comma
-      if (this.la.kind === '}' || this.la.kind === 'OUTDENT') {
-        break;  // Trailing comma before end
-      }
-      list.push(this.parseAssignObj());
-    }
-  }
-
-  return list;
-}
-
 parseAssignListTail() {
-switch (this.la.kind) {    case ',':
+    switch (this.la.kind) {    case ',':
       {
       const $$1 = this._match(',');
       const $$2 = this.parseAssignObj();
@@ -1665,135 +1331,126 @@ switch (this.la.kind) {    case ',':
       const $$4 = this.parseOptComma();
       const $$5 = this._match('OUTDENT');
       return [...$$3];
-      }default:      // ε production
-      return [];  }
-}
-
-parseClass() {
-  this._match('CLASS');
-
-  // Check for optional name (SimpleAssignable)
-  let name = null;
-  if (this.la.kind === 'IDENTIFIER' || this.la.kind === '@') {
-    name = this.parseSimpleAssignable();
+      }      default:      // ε production
+      return [];    }
   }
 
-  // Check for optional EXTENDS
-  let superclass = null;
-  if (this.la.kind === 'EXTENDS') {
-    this._match('EXTENDS');
-    superclass = this.parseExpression();
-  }
+  parseClass() {
+    this._match('CLASS');
 
-  // Check for optional Block
-  let body = null;
-  if (this.la.kind === 'INDENT') {
-    body = this.parseBlock();
-  }
+    // Check for optional name (SimpleAssignable)
+    let name = null;
+    if (this.la.kind === 'IDENTIFIER' || this.la.kind === '@') {
+      name = this.parseSimpleAssignable();
+    }
 
-  // Build result based on what we have
-  if (body) {
-    return ["class", name, superclass, body];
-  } else if (superclass) {
-    return ["class", name, superclass];
-  } else if (name) {
-    return ["class", name, null];
-  } else {
-    return ["class", null, null];
-  }
-}
+    // Check for optional EXTENDS
+    let superclass = null;
+    if (this.la.kind === 'EXTENDS') {
+      this._match('EXTENDS');
+      superclass = this.parseExpression();
+    }
 
-parseImport() {
-  this._match('IMPORT');
+    // Check for optional Block
+    let body = null;
+    if (this.la.kind === 'INDENT') {
+      body = this.parseBlock();
+    }
 
-  // Lookahead to determine import type
-  if (this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
-    // IMPORT String → side-effect import
-    const str = this.parseString();
-    return ["import", "{}", str];
-  }
-
-  if (this.la.kind === '{') {
-    // IMPORT { ... } FROM String
-    this._match('{');
-    if (this.la.kind === '}') {
-      // Empty: IMPORT { } FROM String
-      this._match('}');
-      this._match('FROM');
-      const str = this.parseString();
-      return ["import", "{}", str];
+    // Build result based on what we have
+    if (body) {
+      return ["class", name, superclass, body];
+    } else if (superclass) {
+      return ["class", name, superclass];
+    } else if (name) {
+      return ["class", name, null];
     } else {
-      // With specifiers: IMPORT { ImportSpecifierList OptComma } FROM String
-      const specifiers = this.parseImportSpecifierList();
-      if (this.la.kind === ',') {
-        this._match(',');  // OptComma
-      }
-      this._match('}');
-      this._match('FROM');
-      const str = this.parseString();
-      return ["import", specifiers, str];
+      return ["class", null, null];
     }
   }
 
-  // Must be ImportDefaultSpecifier or ImportNamespaceSpecifier
-  if (this.la.kind === 'IMPORT_ALL') {
-    // IMPORT ImportNamespaceSpecifier FROM String
-    const ns = this.parseImportNamespaceSpecifier();
-    this._match('FROM');
-    const str = this.parseString();
-    return ["import", ns, str];
-  }
+  parseImport() {
+    this._match('IMPORT');
 
-  // ImportDefaultSpecifier (Identifier)
-  const defaultSpec = this.parseImportDefaultSpecifier();
-
-  // Check what comes next
-  if (this.la.kind === 'FROM') {
-    // Simple: IMPORT ImportDefaultSpecifier FROM String
-    this._match('FROM');
-    const str = this.parseString();
-    return ["import", defaultSpec, str];
-  }
-
-  if (this.la.kind === ',') {
-    this._match(',');
-
-    if (this.la.kind === 'IMPORT_ALL') {
-      // IMPORT ImportDefaultSpecifier , ImportNamespaceSpecifier FROM String
-      const ns = this.parseImportNamespaceSpecifier();
-      this._match('FROM');
+    // Lookahead to determine import type
+    if (this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
+      // IMPORT String → side-effect import
       const str = this.parseString();
-      return ["import", [defaultSpec, ns], str];
+      return ["import", "{}", str];
     }
 
     if (this.la.kind === '{') {
-      // IMPORT ImportDefaultSpecifier , { ImportSpecifierList OptComma } FROM String
+      // IMPORT { ... } FROM String
       this._match('{');
-      const specifiers = this.parseImportSpecifierList();
-      if (this.la.kind === ',') {
-        this._match(',');
+      if (this.la.kind === '}') {
+        // Empty: IMPORT { } FROM String
+        this._match('}');
+        this._match('FROM');
+        const str = this.parseString();
+        return ["import", "{}", str];
+      } else {
+        // With specifiers: IMPORT { ImportSpecifierList OptComma } FROM String
+        const specifiers = this.parseImportSpecifierList();
+        if (this.la.kind === ',') {
+          this._match(',');  // OptComma
+        }
+        this._match('}');
+        this._match('FROM');
+        const str = this.parseString();
+        return ["import", specifiers, str];
       }
-      this._match('}');
+    }
+
+    // Must be ImportDefaultSpecifier or ImportNamespaceSpecifier
+    if (this.la.kind === 'IMPORT_ALL') {
+      // IMPORT ImportNamespaceSpecifier FROM String
+      const ns = this.parseImportNamespaceSpecifier();
       this._match('FROM');
       const str = this.parseString();
-      return ["import", [defaultSpec, specifiers], str];
+      return ["import", ns, str];
     }
-  }
 
-  this._error(['STRING', 'STRING_START', '{', 'IMPORT_ALL', 'FROM'], "Invalid Import");
-}
+    // ImportDefaultSpecifier (Identifier)
+    const defaultSpec = this.parseImportDefaultSpecifier();
+
+    // Check what comes next
+    if (this.la.kind === 'FROM') {
+      // Simple: IMPORT ImportDefaultSpecifier FROM String
+      this._match('FROM');
+      const str = this.parseString();
+      return ["import", defaultSpec, str];
+    }
+
+    if (this.la.kind === ',') {
+      this._match(',');
+
+      if (this.la.kind === 'IMPORT_ALL') {
+        // IMPORT ImportDefaultSpecifier , ImportNamespaceSpecifier FROM String
+        const ns = this.parseImportNamespaceSpecifier();
+        this._match('FROM');
+        const str = this.parseString();
+        return ["import", [defaultSpec, ns], str];
+      }
+
+      if (this.la.kind === '{') {
+        // IMPORT ImportDefaultSpecifier , { ImportSpecifierList OptComma } FROM String
+        this._match('{');
+        const specifiers = this.parseImportSpecifierList();
+        if (this.la.kind === ',') {
+          this._match(',');
+        }
+        this._match('}');
+        this._match('FROM');
+        const str = this.parseString();
+        return ["import", [defaultSpec, specifiers], str];
+      }
+    }
+
+    this._error(['STRING', 'STRING_START', '{', 'IMPORT_ALL', 'FROM'], "Invalid Import");
+  }
 
 parseImportSpecifierList() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseImportSpecifierList(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'IDENTIFIER':
+    switch (this.la.kind) {    case 'IDENTIFIER':
       {
       const $$1 = this.parseImportSpecifier();
       const $$2 = this.parseImportSpecifierListTail();
@@ -1812,14 +1469,11 @@ switch (this.la.kind) {    case 'IDENTIFIER':
       const $$3 = this.parseOptComma();
       const $$4 = this._match('OUTDENT');
       return $$2;
-      }default:      this._error(['IDENTIFIER', 'DEFAULT', 'INDENT'], "Invalid ImportSpecifierList");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error(['IDENTIFIER', 'DEFAULT', 'INDENT'], "Invalid ImportSpecifierList");    }
   }
-}
 
 parseImportSpecifierListTail() {
-switch (this.la.kind) {    case ',':
+    switch (this.la.kind) {    case ',':
       {
       const $$1 = this._match(',');
       const $$2 = this.parseImportSpecifier();
@@ -1842,203 +1496,144 @@ switch (this.la.kind) {    case ',':
       const $$4 = this.parseOptComma();
       const $$5 = this._match('OUTDENT');
       return [...$$3];
-      }default:      // ε production
-      return [];  }
-}
-
-parseImportSpecifier() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseImportSpecifier(). Possible grammar cycle.");
+      }      default:      // ε production
+      return [];    }
   }
-}
-try {
-  if (this.la.kind === 'IDENTIFIER') {
-    const id = this.parseIdentifier();
 
-    // Check for AS (alias)
-    if (this.la.kind === 'AS') {
-      this._match('AS');
-      const alias = this.parseIdentifier();
-      return [id, alias];
+  parseImportSpecifier() {
+    if (this.la.kind === 'IDENTIFIER') {
+      const id = this.parseIdentifier();
+
+      // Check for AS (alias)
+      if (this.la.kind === 'AS') {
+        this._match('AS');
+        const alias = this.parseIdentifier();
+        return [id, alias];
+      }
+
+      // No alias - just return identifier
+      return id;
+    } else if (this.la.kind === 'DEFAULT') {
+      const def = this._match('DEFAULT');
+
+      // Check for AS (alias)
+      if (this.la.kind === 'AS') {
+        this._match('AS');
+        const alias = this.parseIdentifier();
+        return [def, alias];
+      }
+
+      // No alias - just return DEFAULT
+      return def;
     }
 
-    // No alias - just return identifier
-    return id;
-  } else if (this.la.kind === 'DEFAULT') {
-    const def = this._match('DEFAULT');
-
-    // Check for AS (alias)
-    if (this.la.kind === 'AS') {
-      this._match('AS');
-      const alias = this.parseIdentifier();
-      return [def, alias];
-    }
-
-    // No alias - just return DEFAULT
-    return def;
+    this._error(['IDENTIFIER', 'DEFAULT'], "Invalid ImportSpecifier");
   }
 
-  this._error(['IDENTIFIER', 'DEFAULT'], "Invalid ImportSpecifier");
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
+parseImportDefaultSpecifier() {const $$1 = this._match('IDENTIFIER');
+      return $$1;  }
 
-parseImportDefaultSpecifier() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseImportDefaultSpecifier(). Possible grammar cycle.");
-  }
-}
-try {
-    const $$1 = this._match('IDENTIFIER');
-      return $$1;  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
-
-parseImportNamespaceSpecifier() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseImportNamespaceSpecifier(). Possible grammar cycle.");
-  }
-}
-try {
-    const $$1 = this._match('IMPORT_ALL');
+parseImportNamespaceSpecifier() {const $$1 = this._match('IMPORT_ALL');
       const $$2 = this._match('AS');
       const $$3 = this._match('IDENTIFIER');
-      return ["*", $$3];  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
+      return ["*", $$3];  }
 
-parseExport() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseExport(). Possible grammar cycle.");
-  }
-}
-try {
-  this._match('EXPORT');
+  parseExport() {
+    this._match('EXPORT');
 
-  // Check what comes after EXPORT
-  if (this.la.kind === '{') {
-    // Could be: { } or { ExportSpecifierList } or { } FROM or { ExportSpecifierList } FROM
-    this._match('{');
+    // Check what comes after EXPORT
+    if (this.la.kind === '{') {
+      // Could be: { } or { ExportSpecifierList } or { } FROM or { ExportSpecifierList } FROM
+      this._match('{');
 
-    if (this.la.kind === '}') {
-      // Empty braces: EXPORT { } or EXPORT { } FROM String
-      this._match('}');
+      if (this.la.kind === '}') {
+        // Empty braces: EXPORT { } or EXPORT { } FROM String
+        this._match('}');
 
-      if (this.la.kind === 'FROM') {
-        // EXPORT { } FROM String
-        this._match('FROM');
-        const str = this.parseString();
-        return ["export-from", "{}", str];
+        if (this.la.kind === 'FROM') {
+          // EXPORT { } FROM String
+          this._match('FROM');
+          const str = this.parseString();
+          return ["export-from", "{}", str];
+        } else {
+          // EXPORT { }
+          return ["export", "{}"];
+        }
       } else {
-        // EXPORT { }
-        return ["export", "{}"];
-      }
-    } else {
-      // With specifiers: EXPORT { ExportSpecifierList OptComma }
-      const specifiers = this.parseExportSpecifierList();
-      if (this.la.kind === ',') {
-        this._match(',');  // OptComma
-      }
-      this._match('}');
+        // With specifiers: EXPORT { ExportSpecifierList OptComma }
+        const specifiers = this.parseExportSpecifierList();
+        if (this.la.kind === ',') {
+          this._match(',');  // OptComma
+        }
+        this._match('}');
 
-      if (this.la.kind === 'FROM') {
-        // EXPORT { ExportSpecifierList } FROM String
-        this._match('FROM');
-        const str = this.parseString();
-        return ["export-from", specifiers, str];
+        if (this.la.kind === 'FROM') {
+          // EXPORT { ExportSpecifierList } FROM String
+          this._match('FROM');
+          const str = this.parseString();
+          return ["export-from", specifiers, str];
+        } else {
+          // EXPORT { ExportSpecifierList }
+          return ["export", specifiers];
+        }
+      }
+    } else if (this.la.kind === 'CLASS') {
+      // EXPORT Class
+      const cls = this.parseClass();
+      return ["export", cls];
+    } else if (this.la.kind === 'DEF') {
+      // EXPORT Def
+      const def = this.parseDef();
+      return ["export", def];
+    } else if (this.la.kind === 'DEFAULT') {
+      // EXPORT DEFAULT Expression or EXPORT DEFAULT INDENT Object OUTDENT
+      this._match('DEFAULT');
+
+      if (this.la.kind === 'INDENT') {
+        // EXPORT DEFAULT INDENT Object OUTDENT
+        this._match('INDENT');
+        const obj = this.parseObject();
+        this._match('OUTDENT');
+        return ["export-default", obj];
       } else {
-        // EXPORT { ExportSpecifierList }
-        return ["export", specifiers];
+        // EXPORT DEFAULT Expression
+        const expr = this.parseExpression();
+        return ["export-default", expr];
+      }
+    } else if (this.la.kind === 'EXPORT_ALL') {
+      // EXPORT EXPORT_ALL FROM String
+      this._match('EXPORT_ALL');
+      this._match('FROM');
+      const str = this.parseString();
+      return ["export-all", str];
+    } else if (this.la.kind === 'IDENTIFIER') {
+      // EXPORT Identifier = Expression (with optional TERMINATOR or INDENT)
+      const id = this.parseIdentifier();
+      this._match('=');
+
+      if (this.la.kind === 'INDENT') {
+        // EXPORT Identifier = INDENT Expression OUTDENT
+        this._match('INDENT');
+        const expr = this.parseExpression();
+        this._match('OUTDENT');
+        return ["export", ["=", id, expr]];
+      } else if (this.la.kind === 'TERMINATOR') {
+        // EXPORT Identifier = TERMINATOR Expression
+        this._match('TERMINATOR');
+        const expr = this.parseExpression();
+        return ["export", ["=", id, expr]];
+      } else {
+        // EXPORT Identifier = Expression
+        const expr = this.parseExpression();
+        return ["export", ["=", id, expr]];
       }
     }
-  } else if (this.la.kind === 'CLASS') {
-    // EXPORT Class
-    const cls = this.parseClass();
-    return ["export", cls];
-  } else if (this.la.kind === 'DEF') {
-    // EXPORT Def
-    const def = this.parseDef();
-    return ["export", def];
-  } else if (this.la.kind === 'DEFAULT') {
-    // EXPORT DEFAULT Expression or EXPORT DEFAULT INDENT Object OUTDENT
-    this._match('DEFAULT');
 
-    if (this.la.kind === 'INDENT') {
-      // EXPORT DEFAULT INDENT Object OUTDENT
-      this._match('INDENT');
-      const obj = this.parseObject();
-      this._match('OUTDENT');
-      return ["export-default", obj];
-    } else {
-      // EXPORT DEFAULT Expression
-      const expr = this.parseExpression();
-      return ["export-default", expr];
-    }
-  } else if (this.la.kind === 'EXPORT_ALL') {
-    // EXPORT EXPORT_ALL FROM String
-    this._match('EXPORT_ALL');
-    this._match('FROM');
-    const str = this.parseString();
-    return ["export-all", str];
-  } else if (this.la.kind === 'IDENTIFIER') {
-    // EXPORT Identifier = Expression (with optional TERMINATOR or INDENT)
-    const id = this.parseIdentifier();
-    this._match('=');
-
-    if (this.la.kind === 'INDENT') {
-      // EXPORT Identifier = INDENT Expression OUTDENT
-      this._match('INDENT');
-      const expr = this.parseExpression();
-      this._match('OUTDENT');
-      return ["export", ["=", id, expr]];
-    } else if (this.la.kind === 'TERMINATOR') {
-      // EXPORT Identifier = TERMINATOR Expression
-      this._match('TERMINATOR');
-      const expr = this.parseExpression();
-      return ["export", ["=", id, expr]];
-    } else {
-      // EXPORT Identifier = Expression
-      const expr = this.parseExpression();
-      return ["export", ["=", id, expr]];
-    }
+    this._error(['{', 'CLASS', 'DEF', 'DEFAULT', 'EXPORT_ALL', 'IDENTIFIER'], "Invalid Export");
   }
-
-  this._error(['{', 'CLASS', 'DEF', 'DEFAULT', 'EXPORT_ALL', 'IDENTIFIER'], "Invalid Export");
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
 
 parseExportSpecifierList() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseExportSpecifierList(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'IDENTIFIER':
+    switch (this.la.kind) {    case 'IDENTIFIER':
       {
       const $$1 = this.parseExportSpecifier();
       const $$2 = this.parseExportSpecifierListTail();
@@ -2057,14 +1652,11 @@ switch (this.la.kind) {    case 'IDENTIFIER':
       const $$3 = this.parseOptComma();
       const $$4 = this._match('OUTDENT');
       return $$2;
-      }default:      this._error(['IDENTIFIER', 'DEFAULT', 'INDENT'], "Invalid ExportSpecifierList");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error(['IDENTIFIER', 'DEFAULT', 'INDENT'], "Invalid ExportSpecifierList");    }
   }
-}
 
 parseExportSpecifierListTail() {
-switch (this.la.kind) {    case ',':
+    switch (this.la.kind) {    case ',':
       {
       const $$1 = this._match(',');
       const $$2 = this.parseExportSpecifier();
@@ -2087,175 +1679,118 @@ switch (this.la.kind) {    case ',':
       const $$4 = this.parseOptComma();
       const $$5 = this._match('OUTDENT');
       return [...$$3];
-      }default:      // ε production
-      return [];  }
-}
-
-parseExportSpecifier() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseExportSpecifier(). Possible grammar cycle.");
+      }      default:      // ε production
+      return [];    }
   }
-}
-try {
-  if (this.la.kind === 'IDENTIFIER') {
-    const id = this.parseIdentifier();
 
-    // Check for AS (alias)
-    if (this.la.kind === 'AS') {
-      this._match('AS');
+  parseExportSpecifier() {
+    if (this.la.kind === 'IDENTIFIER') {
+      const id = this.parseIdentifier();
 
-      if (this.la.kind === 'DEFAULT') {
-        // Identifier AS DEFAULT (export as default)
-        const def = this._match('DEFAULT');
-        return [id, def];
-      } else {
-        // Identifier AS Identifier (regular alias)
+      // Check for AS (alias)
+      if (this.la.kind === 'AS') {
+        this._match('AS');
+
+        if (this.la.kind === 'DEFAULT') {
+          // Identifier AS DEFAULT (export as default)
+          const def = this._match('DEFAULT');
+          return [id, def];
+        } else {
+          // Identifier AS Identifier (regular alias)
+          const alias = this.parseIdentifier();
+          return [id, alias];
+        }
+      }
+
+      // No alias - just return identifier
+      return id;
+    } else if (this.la.kind === 'DEFAULT') {
+      const def = this._match('DEFAULT');
+
+      // Check for AS (alias)
+      if (this.la.kind === 'AS') {
+        this._match('AS');
         const alias = this.parseIdentifier();
-        return [id, alias];
+        return [def, alias];
+      }
+
+      // No alias - just return DEFAULT
+      return def;
+    }
+
+    this._error(['IDENTIFIER', 'DEFAULT'], "Invalid ExportSpecifier");
+  }
+
+  parseInvocation() {
+    // Check for special starting tokens
+    if (this.la.kind === 'SUPER') {
+      // SUPER OptFuncExist Arguments
+      this._match('SUPER');
+      const funcExist = this.parseOptFuncExist();
+      const args = this.parseArguments();
+      return funcExist ? ["?super", ...args] : ["super", ...args];
+    } else if (this.la.kind === 'DYNAMIC_IMPORT') {
+      // DYNAMIC_IMPORT Arguments
+      this._match('DYNAMIC_IMPORT');
+      const args = this.parseArguments();
+      return ["import", ...args];
+    } else {
+      // Assignable OptFuncExist (String | Arguments | ES6_OPTIONAL_CALL Arguments)
+      const assignable = this.parseAssignable();
+
+      // Check for ES6_OPTIONAL_CALL
+      if (this.la.kind === 'ES6_OPTIONAL_CALL') {
+        this._match('ES6_OPTIONAL_CALL');
+        const args = this.parseArguments();
+        return ["optcall", assignable, ...args];
+      }
+
+      const funcExist = this.parseOptFuncExist();
+
+      // Lookahead: String (tagged template) or Arguments (call)
+      if (this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
+        const str = this.parseString();
+        return ["tagged-template", assignable, str];
+      } else {
+        // Must be Arguments (CALL_START)
+        const args = this.parseArguments();
+        return funcExist ? ["?call", assignable, ...args] : [assignable, ...args];
       }
     }
-
-    // No alias - just return identifier
-    return id;
-  } else if (this.la.kind === 'DEFAULT') {
-    const def = this._match('DEFAULT');
-
-    // Check for AS (alias)
-    if (this.la.kind === 'AS') {
-      this._match('AS');
-      const alias = this.parseIdentifier();
-      return [def, alias];
-    }
-
-    // No alias - just return DEFAULT
-    return def;
   }
-
-  this._error(['IDENTIFIER', 'DEFAULT'], "Invalid ExportSpecifier");
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
-
-parseInvocation() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseInvocation(). Possible grammar cycle.");
-  }
-}
-try {
-  // Check for special starting tokens
-  if (this.la.kind === 'SUPER') {
-    // SUPER OptFuncExist Arguments
-    this._match('SUPER');
-    const funcExist = this.parseOptFuncExist();
-    const args = this.parseArguments();
-    return funcExist ? ["?super", ...args] : ["super", ...args];
-  } else if (this.la.kind === 'DYNAMIC_IMPORT') {
-    // DYNAMIC_IMPORT Arguments
-    this._match('DYNAMIC_IMPORT');
-    const args = this.parseArguments();
-    return ["import", ...args];
-  } else {
-    // Assignable OptFuncExist (String | Arguments | ES6_OPTIONAL_CALL Arguments)
-    const assignable = this.parseAssignable();
-
-    // Check for ES6_OPTIONAL_CALL
-    if (this.la.kind === 'ES6_OPTIONAL_CALL') {
-      this._match('ES6_OPTIONAL_CALL');
-      const args = this.parseArguments();
-      return ["optcall", assignable, ...args];
-    }
-
-    const funcExist = this.parseOptFuncExist();
-
-    // Lookahead: String (tagged template) or Arguments (call)
-    if (this.la.kind === 'STRING' || this.la.kind === 'STRING_START') {
-      const str = this.parseString();
-      return ["tagged-template", assignable, str];
-    } else {
-      // Must be Arguments (CALL_START)
-      const args = this.parseArguments();
-      return funcExist ? ["?call", assignable, ...args] : [assignable, ...args];
-    }
-  }
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
 
 parseOptFuncExist() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseOptFuncExist(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'FUNC_EXIST':
+    switch (this.la.kind) {    case 'FUNC_EXIST':
       {
       const $$1 = this._match('FUNC_EXIST');
       return true;
-      }default:      // ε production
-      return null;  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      // ε production
+      return null;    }
   }
-}
 
-parseArguments() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseArguments(). Possible grammar cycle.");
-  }
-}
-try {
-  this._match('CALL_START');
+  parseArguments() {
+    this._match('CALL_START');
 
-  // Check if arguments are empty
-  if (this.la.kind === 'CALL_END') {
+    // Check if arguments are empty
+    if (this.la.kind === 'CALL_END') {
+      this._match('CALL_END');
+      return [];
+    }
+
+    // Parse argument list
+    const args = this.parseArgList();
+
+    // Optional trailing comma
+    if (this.la.kind === ',') {
+      this._match(',');
+    }
+
     this._match('CALL_END');
-    return [];
+    return args;
   }
-
-  // Parse argument list
-  const args = this.parseArgList();
-
-  // Optional trailing comma
-  if (this.la.kind === ',') {
-    this._match(',');
-  }
-
-  this._match('CALL_END');
-  return args;
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
 
 parseThis() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseThis(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'THIS':
+    switch (this.la.kind) {    case 'THIS':
       {
       const $$1 = this._match('THIS');
       return "this";
@@ -2264,138 +1799,113 @@ switch (this.la.kind) {    case 'THIS':
       {
       const $$1 = this._match('@');
       return "this";
-      }default:      this._error(['THIS', '@'], "Invalid This");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error(['THIS', '@'], "Invalid This");    }
   }
-}
 
-parseThisProperty() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseThisProperty(). Possible grammar cycle.");
-  }
-}
-try {
-    const $$1 = this._match('@');
+parseThisProperty() {const $$1 = this._match('@');
       const $$2 = this._match('PROPERTY');
-      return [".", "this", $$2];  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
+      return [".", "this", $$2];  }
 
-parseArray() {
-  this._match('[');
+  parseArray() {
+    this._match('[');
 
-  // Check for empty array
-  if (this.la.kind === ']') {
-    this._match(']');
-    return ["array"];
-  }
-
-  // Check for multiline array with INDENT
-  if (this.la.kind === 'INDENT') {
-    this._match('INDENT');
-    // Parse array contents (after INDENT, before OUTDENT)
-    // Use parseArgList which handles multiline properly
-    let list = [];
-    if (this.la.kind !== 'OUTDENT') {
-      list = this.parseArgList();
-      if (this.la.kind === ',') {
-        this._match(',');  // Optional trailing comma
-      }
-    }
-    this._match('OUTDENT');
-    this._match(']');
-    return ["array", ...list];
-  }
-
-  // Build array element list, handling commas inline
-  let list = [];
-
-  // Handle leading commas (elisions at start)
-  while (this.la.kind === ',') {
-    list.push(",");  // Hole
-    this._match(',');
+    // Check for empty array
     if (this.la.kind === ']') {
-      // All holes: [,,]
+      this._match(']');
+      return ["array"];
+    }
+
+    // Check for multiline array with INDENT
+    if (this.la.kind === 'INDENT') {
+      this._match('INDENT');
+      // Parse array contents (after INDENT, before OUTDENT)
+      // Use parseArgList which handles multiline properly
+      let list = [];
+      if (this.la.kind !== 'OUTDENT') {
+        list = this.parseArgList();
+        if (this.la.kind === ',') {
+          this._match(',');  // Optional trailing comma
+        }
+      }
+      this._match('OUTDENT');
       this._match(']');
       return ["array", ...list];
     }
-  }
 
-  // Now handle first element if not already at end
-  if (this.la.kind === ']') {
+    // Build array element list, handling commas inline
+    let list = [];
+
+    // Handle leading commas (elisions at start)
+    while (this.la.kind === ',') {
+      list.push(",");  // Hole
+      this._match(',');
+      if (this.la.kind === ']') {
+        // All holes: [,,]
+        this._match(']');
+        return ["array", ...list];
+      }
+    }
+
+    // Now handle first element if not already at end
+    if (this.la.kind === ']') {
+      this._match(']');
+      return ["array", ...list];
+    }
+
+    // Parse first element/expression
+    // Could be:
+    // - Start of array: [1, 2, 3]
+    // - Start of range: [1..3] or [1...4]
+    // - Spread: [...arr, 1]
+    let firstExpr;
+    if (this.la.kind === '...') {
+      firstExpr = this.parseSplat();
+    } else {
+      firstExpr = this.parseExpression();
+    }
+
+    // Check for range operators
+    if (this.la.kind === '..' || this.la.kind === '...') {
+      // It's a Range! [ Expression RangeDots Expression ]
+      const dots = this.parseRangeDots();
+      const secondExpr = this.parseExpression();
+      this._match(']');
+      return [dots, firstExpr, secondExpr];
+    }
+
+    // It's an Array - parse remaining elements
+    // We already have first element (and maybe leading holes), now check for more
+    list.push(firstExpr);
+
+    // Parse rest of array (commas and more elements)
+    while (this.la.kind === ',') {
+      this._match(',');
+      // Check for closing bracket (just trailing separator, no hole)
+      if (this.la.kind === ']') {
+        break;  // Trailing comma - don't add hole
+      }
+      // Check for elision (another comma means a hole)
+      if (this.la.kind === ',') {
+        list.push(",");  // Comma string represents hole in s-expression
+        continue;
+      }
+      // Check for spread operator
+      if (this.la.kind === '...') {
+        const splat = this.parseSplat();
+        list.push(splat);
+        continue;
+      }
+      // Parse next element
+      const elem = this.parseExpression();
+      list.push(elem);
+    }
+
     this._match(']');
     return ["array", ...list];
   }
 
-  // Parse first element/expression
-  // Could be:
-  // - Start of array: [1, 2, 3]
-  // - Start of range: [1..3] or [1...4]
-  // - Spread: [...arr, 1]
-  let firstExpr;
-  if (this.la.kind === '...') {
-    firstExpr = this.parseSplat();
-  } else {
-    firstExpr = this.parseExpression();
-  }
-
-  // Check for range operators
-  if (this.la.kind === '..' || this.la.kind === '...') {
-    // It's a Range! [ Expression RangeDots Expression ]
-    const dots = this.parseRangeDots();
-    const secondExpr = this.parseExpression();
-    this._match(']');
-    return [dots, firstExpr, secondExpr];
-  }
-
-  // It's an Array - parse remaining elements
-  // We already have first element (and maybe leading holes), now check for more
-  list.push(firstExpr);
-
-  // Parse rest of array (commas and more elements)
-  while (this.la.kind === ',') {
-    this._match(',');
-    // Check for closing bracket (just trailing separator, no hole)
-    if (this.la.kind === ']') {
-      break;  // Trailing comma - don't add hole
-    }
-    // Check for elision (another comma means a hole)
-    if (this.la.kind === ',') {
-      list.push(",");  // Comma string represents hole in s-expression
-      continue;
-    }
-    // Check for spread operator
-    if (this.la.kind === '...') {
-      const splat = this.parseSplat();
-      list.push(splat);
-      continue;
-    }
-    // Parse next element
-    const elem = this.parseExpression();
-    list.push(elem);
-  }
-
-  this._match(']');
-  return ["array", ...list];
-}
-
 parseRangeDots() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseRangeDots(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case '..':
+    switch (this.la.kind) {    case '..':
       {
       const $$1 = this._match('..');
       return "..";
@@ -2404,112 +1914,96 @@ switch (this.la.kind) {    case '..':
       {
       const $$1 = this._match('...');
       return "...";
-      }default:      this._error(['..', '...'], "Invalid RangeDots");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error(['..', '...'], "Invalid RangeDots");    }
   }
-}
 
-parseRange() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseRange(). Possible grammar cycle.");
-  }
-}
-try {
-    const $$1 = this._match('[');
+parseRange() {const $$1 = this._match('[');
       const $$2 = this.parseExpression();
       const $$3 = this.parseRangeDots();
       const $$4 = this.parseExpression();
       const $$5 = this._match(']');
-      return [$$3, $$2, $$4];  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
+      return [$$3, $$2, $$4];  }
 
-parseSlice() {
-  // Check if it starts with RangeDots
-  if (this.la.kind === '..' || this.la.kind === '...') {
-    const dots = this.parseRangeDots();
+  parseSlice() {
+    // Check if it starts with RangeDots
+    if (this.la.kind === '..' || this.la.kind === '...') {
+      const dots = this.parseRangeDots();
 
-    // Check if there's an expression after
-    // Must check if we can start an Expression (not at INDEX_END, OUTDENT, etc.)
-    if (this.la.kind !== 'INDEX_END' && this.la.kind !== 'OUTDENT') {
-      const endExpr = this.parseExpression();
-      return [dots, null, endExpr];  // Rule 3: RangeDots Expression
-    } else {
-      return [dots, null, null];  // Rule 4: RangeDots only
+      // Check if there's an expression after
+      // Must check if we can start an Expression (not at INDEX_END, OUTDENT, etc.)
+      if (this.la.kind !== 'INDEX_END' && this.la.kind !== 'OUTDENT') {
+        const endExpr = this.parseExpression();
+        return [dots, null, endExpr];  // Rule 3: RangeDots Expression
+      } else {
+        return [dots, null, null];  // Rule 4: RangeDots only
+      }
     }
+
+    // Otherwise parse Expression first
+    const startExpr = this.parseExpression();
+
+    // Check for RangeDots after expression
+    if (this.la.kind === '..' || this.la.kind === '...') {
+      const dots = this.parseRangeDots();
+
+      // Check if there's an expression after
+      if (this.la.kind !== 'INDEX_END' && this.la.kind !== 'OUTDENT') {
+        const endExpr = this.parseExpression();
+        return [dots, startExpr, endExpr];  // Rule 1: Expression RangeDots Expression
+      } else {
+        return [dots, startExpr, null];  // Rule 2: Expression RangeDots
+      }
+    }
+
+    // No RangeDots found - this shouldn't happen in valid Slice context
+    this._error(['..',  '...'], "Invalid Slice");
   }
 
-  // Otherwise parse Expression first
-  const startExpr = this.parseExpression();
-
-  // Check for RangeDots after expression
-  if (this.la.kind === '..' || this.la.kind === '...') {
-    const dots = this.parseRangeDots();
-
-    // Check if there's an expression after
-    if (this.la.kind !== 'INDEX_END' && this.la.kind !== 'OUTDENT') {
-      const endExpr = this.parseExpression();
-      return [dots, startExpr, endExpr];  // Rule 1: Expression RangeDots Expression
-    } else {
-      return [dots, startExpr, null];  // Rule 2: Expression RangeDots
+  parseArgList() {
+    // Check for INDENT case (multiline)
+    if (this.la.kind === 'INDENT') {
+      this._match('INDENT');
+      const list = this.parseArgList();  // Recursive for multiline
+      if (this.la.kind === ',') {
+        this._match(',');  // Optional trailing comma
+      }
+      this._match('OUTDENT');
+      return list;
     }
-  }
 
-  // No RangeDots found - this shouldn't happen in valid Slice context
-  this._error(['..',  '...'], "Invalid Slice");
-}
+    // Parse first argument
+    const list = [];
+    list.push(this.parseArg());
 
-parseArgList() {
-  // Check for INDENT case (multiline)
-  if (this.la.kind === 'INDENT') {
-    this._match('INDENT');
-    const list = this.parseArgList();  // Recursive for multiline
-    if (this.la.kind === ',') {
-      this._match(',');  // Optional trailing comma
+    // Parse remaining arguments
+    while (this.la.kind === ',' || this.la.kind === 'TERMINATOR') {
+      if (this.la.kind === 'TERMINATOR') {
+        // Multiline within list (newline-separated args)
+        this._match('TERMINATOR');
+        if (this.la.kind === 'CALL_END' || this.la.kind === ']') {
+          break;  // End of list
+        }
+        list.push(this.parseArg());
+      } else {
+        // Comma-separated args
+        this._match(',');
+        // Check for trailing comma
+        if (this.la.kind === 'CALL_END' || this.la.kind === ']' || this.la.kind === 'OUTDENT') {
+          break;  // Trailing comma before end
+        }
+        // Check for TERMINATOR after comma (multiline with trailing comma)
+        if (this.la.kind === 'TERMINATOR') {
+          continue;  // Let next iteration handle TERMINATOR
+        }
+        list.push(this.parseArg());
+      }
     }
-    this._match('OUTDENT');
+
     return list;
   }
 
-  // Parse first argument
-  const list = [];
-  list.push(this.parseArg());
-
-  // Parse remaining arguments
-  while (this.la.kind === ',' || this.la.kind === 'TERMINATOR') {
-    if (this.la.kind === 'TERMINATOR') {
-      // Multiline within list (newline-separated args)
-      this._match('TERMINATOR');
-      if (this.la.kind === 'CALL_END' || this.la.kind === ']') {
-        break;  // End of list
-      }
-      list.push(this.parseArg());
-    } else {
-      // Comma-separated args
-      this._match(',');
-      // Check for trailing comma
-      if (this.la.kind === 'CALL_END' || this.la.kind === ']' || this.la.kind === 'OUTDENT') {
-        break;  // Trailing comma before end
-      }
-      // Check for TERMINATOR after comma (multiline with trailing comma)
-      if (this.la.kind === 'TERMINATOR') {
-        continue;  // Let next iteration handle TERMINATOR
-      }
-      list.push(this.parseArg());
-    }
-  }
-
-  return list;
-}
-
 parseArgListTail() {
-switch (this.la.kind) {    case ',':
+    switch (this.la.kind) {    case ',':
       {
       const $$1 = this._match(',');
       const $$2 = this.parseArg();
@@ -2532,21 +2026,12 @@ switch (this.la.kind) {    case ',':
       const $$4 = this.parseOptComma();
       const $$5 = this._match('OUTDENT');
       return [...$$3];
-      }default:      // ε production
-      return [];  }
-}
+      }      default:      // ε production
+      return [];    }
+  }
 
 parseArg() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseArg(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'IF': return this.parseExpression();
+    switch (this.la.kind) {    case 'IF': return this.parseExpression();
     case 'UNLESS': return this.parseExpression();
     case 'FOR': return this.parseExpression();
     case 'WHILE': return this.parseExpression();
@@ -2593,54 +2078,51 @@ switch (this.la.kind) {    case 'IF': return this.parseExpression();
     case '++': return this.parseExpression();
     case '...': return this.parseSplat();default:
   this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'THROW', 'IDENTIFIER', '@', '[', '{', 'NUMBER', 'JS', 'REGEX', 'REGEX_START', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', 'STRING', 'STRING_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', '...'], "Invalid Arg");
-  }
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
-
-parseArgElisionList() {
-  // Check for INDENT case (multiline)
-  if (this.la.kind === 'INDENT') {
-    this._match('INDENT');
-    const list = this.parseArgElisionList();  // Recursive for multiline
-    const elisions = this.parseOptElisions();
-    this._match('OUTDENT');
-    return [...list, ...elisions];
-  }
-
-  // Parse first element (may have elisions)
-  const list = [];
-  const first = this.parseArgElision();
-  list.push(...first);
-
-  // Parse remaining elements
-  while (this.la.kind === ',' || this.la.kind === 'TERMINATOR') {
-    if (this.la.kind === 'TERMINATOR') {
-      // Multiline within list
-      this._match('TERMINATOR');
-      if (this.la.kind === ']' || this.la.kind === 'OUTDENT') {
-        break;  // End of list
-      }
-      const elem = this.parseArgElision();
-      list.push(...elem);
-    } else {
-      // Comma-separated
-      this._match(',');
-      // Check for trailing comma or end
-      if (this.la.kind === ']' || this.la.kind === 'OUTDENT') {
-        break;  // Trailing comma before end
-      }
-      const elem = this.parseArgElision();
-      list.push(...elem);
     }
   }
 
-  return list;
-}
+  parseArgElisionList() {
+    // Check for INDENT case (multiline)
+    if (this.la.kind === 'INDENT') {
+      this._match('INDENT');
+      const list = this.parseArgElisionList();  // Recursive for multiline
+      const elisions = this.parseOptElisions();
+      this._match('OUTDENT');
+      return [...list, ...elisions];
+    }
+
+    // Parse first element (may have elisions)
+    const list = [];
+    const first = this.parseArgElision();
+    list.push(...first);
+
+    // Parse remaining elements
+    while (this.la.kind === ',' || this.la.kind === 'TERMINATOR') {
+      if (this.la.kind === 'TERMINATOR') {
+        // Multiline within list
+        this._match('TERMINATOR');
+        if (this.la.kind === ']' || this.la.kind === 'OUTDENT') {
+          break;  // End of list
+        }
+        const elem = this.parseArgElision();
+        list.push(...elem);
+      } else {
+        // Comma-separated
+        this._match(',');
+        // Check for trailing comma or end
+        if (this.la.kind === ']' || this.la.kind === 'OUTDENT') {
+          break;  // Trailing comma before end
+        }
+        const elem = this.parseArgElision();
+        list.push(...elem);
+      }
+    }
+
+    return list;
+  }
 
 parseArgElisionListTail() {
-switch (this.la.kind) {    case ',':
+    switch (this.la.kind) {    case ',':
       {
       const $$1 = this._match(',');
       const $$2 = this.parseArgElision();
@@ -2663,21 +2145,12 @@ switch (this.la.kind) {    case ',':
       const $$4 = this.parseOptElisions();
       const $$5 = this._match('OUTDENT');
       return [...$$1, ...$$3, ...$$4];
-      }default:      // ε production
-      return [];  }
-}
+      }      default:      // ε production
+      return [];    }
+  }
 
 parseArgElision() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseArgElision(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'IF':
+    switch (this.la.kind) {    case 'IF':
       {
       const $$1 = this.parseArg();
       return [$$1];
@@ -2912,226 +2385,128 @@ switch (this.la.kind) {    case 'IF':
       const $$1 = this.parseElisions();
       const $$2 = this.parseArg();
       return [...$$1, $$2];
-      }default:      this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'THROW', 'IDENTIFIER', '@', 'JS', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', '[', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', '{', 'NUMBER', 'STRING', 'STRING_START', 'REGEX', 'REGEX_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', '...', ','], "Invalid ArgElision");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'THROW', 'IDENTIFIER', '@', 'JS', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', '[', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', '{', 'NUMBER', 'STRING', 'STRING_START', 'REGEX', 'REGEX_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', '...', ','], "Invalid ArgElision");    }
   }
-}
 
 parseOptElisions() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseOptElisions(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case ',':
+    switch (this.la.kind) {    case ',':
       {
       const $$1 = this._match(',');
       const $$2 = this.parseElisions();
       return [...$$2];
-      }default:      this._error([','], "Invalid OptElisions");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error([','], "Invalid OptElisions");    }
   }
-}
 
 parseElisions() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseElisions(). Possible grammar cycle.");
-  }
-}
-try {
 // List pattern: Elisions → Elision ElisionsTail
     const $$1 = this.parseElision();
-const $$2 = this.parseElisionsTail();
-    return [$$1, ...$$2];  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
+const $$2 = this.parseElisionsTail();return [$$1, ...$$2];  }
 
 parseElisionsTail() {
-switch (this.la.kind) {    case ',':
+    switch (this.la.kind) {    case ',':
       {
       const $$1 = this.parseElision();
       const $$2 = this.parseElisionsTail();
       return [$$1, ...$$2];
-      }default:      // ε production
-      return [];  }
-}
+      }      default:      // ε production
+      return [];    }
+  }
 
 parseElision() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseElision(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case ',':
+    switch (this.la.kind) {    case ',':
       {
       const $$1 = this._match(',');
       return null;
-      }default:      this._error([','], "Invalid Elision");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error([','], "Invalid Elision");    }
   }
-}
 
 parseSimpleArgs() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseSimpleArgs(). Possible grammar cycle.");
-  }
-}
-try {
 // List pattern: SimpleArgs → Expression SimpleArgsTail
     const $$1 = this.parseExpression();
-const $$2 = this.parseSimpleArgsTail();
-    return Array.isArray($$2) && $$2.length > 0 ? [$$1, ...$$2] : $$1;  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
+const $$2 = this.parseSimpleArgsTail();return Array.isArray($$2) && $$2.length > 0 ? [$$1, ...$$2] : $$1;  }
 
 parseSimpleArgsTail() {
-switch (this.la.kind) {    case ',':
+    switch (this.la.kind) {    case ',':
       {
       const $$1 = this._match(',');
       const $$2 = this.parseExpression();
       const $$3 = this.parseSimpleArgsTail();
       return [$$2, ...$$3];
-      }default:      // ε production
-      return [];  }
-}
-
-parseTry() {
-  this._match('TRY');
-  const tryBlock = this.parseBlock();
-
-  // Check for Catch
-  let catchClause = null;
-  if (this.la.kind === 'CATCH') {
-    catchClause = this.parseCatch();
+      }      default:      // ε production
+      return [];    }
   }
 
-  // Check for Finally
-  if (this.la.kind === 'FINALLY') {
-    this._match('FINALLY');
-    const finallyBlock = this.parseBlock();
+  parseTry() {
+    this._match('TRY');
+    const tryBlock = this.parseBlock();
+
+    // Check for Catch
+    let catchClause = null;
+    if (this.la.kind === 'CATCH') {
+      catchClause = this.parseCatch();
+    }
+
+    // Check for Finally
+    if (this.la.kind === 'FINALLY') {
+      this._match('FINALLY');
+      const finallyBlock = this.parseBlock();
+      if (catchClause) {
+        return ["try", tryBlock, catchClause, finallyBlock];
+      } else {
+        return ["try", tryBlock, finallyBlock];
+      }
+    }
+
+    // Just try-catch or try only
     if (catchClause) {
-      return ["try", tryBlock, catchClause, finallyBlock];
+      return ["try", tryBlock, catchClause];
     } else {
-      return ["try", tryBlock, finallyBlock];
+      return ["try", tryBlock];
     }
   }
 
-  // Just try-catch or try only
-  if (catchClause) {
-    return ["try", tryBlock, catchClause];
-  } else {
-    return ["try", tryBlock];
-  }
-}
+  parseCatch() {
+    this._match('CATCH');
 
-parseCatch() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseCatch(). Possible grammar cycle.");
+    // Lookahead to determine which variant
+    if (this.la.kind === 'INDENT') {
+      // CATCH Block (no parameter)
+      const block = this.parseBlock();
+      return [null, block];
+    } else if (this.la.kind === '{') {
+      // CATCH Object Block (object destructuring)
+      const pattern = this.parseObject();
+      const block = this.parseBlock();
+      return [pattern, block];
+    } else {
+      // CATCH Identifier Block (simple parameter)
+      const param = this.parseIdentifier();
+      const block = this.parseBlock();
+      return [param, block];
+    }
   }
-}
-try {
-  this._match('CATCH');
-
-  // Lookahead to determine which variant
-  if (this.la.kind === 'INDENT') {
-    // CATCH Block (no parameter)
-    const block = this.parseBlock();
-    return [null, block];
-  } else if (this.la.kind === '{') {
-    // CATCH Object Block (object destructuring)
-    const pattern = this.parseObject();
-    const block = this.parseBlock();
-    return [pattern, block];
-  } else {
-    // CATCH Identifier Block (simple parameter)
-    const param = this.parseIdentifier();
-    const block = this.parseBlock();
-    return [param, block];
-  }
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
 
 parseThrow() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseThrow(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'THROW':
+    switch (this.la.kind) {    case 'THROW':
       {
       const $$1 = this._match('THROW');
       const $$2 = this.parseExpression();
       return ["throw", $$2];
-      }default:      this._error(['THROW'], "Invalid Throw");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error(['THROW'], "Invalid Throw");    }
   }
-}
 
 parseParenthetical() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseParenthetical(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case '(':
+    switch (this.la.kind) {    case '(':
       {
       const $$1 = this._match('(');
       const $$2 = this.parseBody();
       const $$3 = this._match(')');
       return $$2.length === 1 ? $$2[0] : $$2;
-      }default:      this._error(['('], "Invalid Parenthetical");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error(['('], "Invalid Parenthetical");    }
   }
-}
 
 parseWhileSource() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseWhileSource(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'WHILE':
+    switch (this.la.kind) {    case 'WHILE':
       {
       const $$1 = this._match('WHILE');
       const $$2 = this.parsePrimaryExpression();
@@ -3142,23 +2517,11 @@ switch (this.la.kind) {    case 'WHILE':
       const $$1 = this._match('UNTIL');
       const $$2 = this.parsePrimaryExpression();
       return ["until", $$2];
-      }default:      this._error(['WHILE', 'UNTIL'], "Invalid WhileSource");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error(['WHILE', 'UNTIL'], "Invalid WhileSource");    }
   }
-}
 
 parseWhile() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseWhile(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'WHILE':
+    switch (this.la.kind) {    case 'WHILE':
       {
       const $$1 = this.parseWhileSource();
       const $$2 = this.parseBlock();
@@ -3174,75 +2537,42 @@ switch (this.la.kind) {    case 'WHILE':
       {
       const $$1 = this.parseLoop();
       return $$1;
-      }default:      this._error(['WHILE', 'UNTIL', 'LOOP'], "Invalid While");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error(['WHILE', 'UNTIL', 'LOOP'], "Invalid While");    }
   }
-}
 
 parseLoop() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseLoop(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'LOOP':
+    switch (this.la.kind) {    case 'LOOP':
       {
       const $$1 = this._match('LOOP');
       const $$2 = this.parseBlock();
       return ["loop", $$2];
-      }default:      this._error(['LOOP'], "Invalid Loop");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error(['LOOP'], "Invalid Loop");    }
   }
-}
 
-parseFor() {
-  // Check if it starts with FOR keyword
-  if (this.la.kind === 'FOR') {
-    this._match('FOR');
+  parseFor() {
+    // Check if it starts with FOR keyword
+    if (this.la.kind === 'FOR') {
+      this._match('FOR');
 
-    // Check for AWAIT (FOR AWAIT ForVariables FORFROM...)
-    let hasAwait = false;
-    if (this.la.kind === 'AWAIT') {
-      this._match('AWAIT');
-      hasAwait = true;
-    }
-
-    // Check for OWN (FOR OWN ForVariables FOROF...)
-    let hasOwn = false;
-    if (this.la.kind === 'OWN') {
-      this._match('OWN');
-      hasOwn = true;
-    }
-
-    // Check what comes next: ForVariables or Range
-    // Note: Range loops (FOR [1..10]) only valid without AWAIT/OWN
-    if (this.la.kind === '[' && !hasAwait && !hasOwn) {
-      // FOR Range Block (simple range-based loop)
-      const range = this.parseRange();
-
-      // Optional BY
-      let byExpr = null;
-      if (this.la.kind === 'BY') {
-        this._match('BY');
-        byExpr = this.parseExpression();
+      // Check for AWAIT (FOR AWAIT ForVariables FORFROM...)
+      let hasAwait = false;
+      if (this.la.kind === 'AWAIT') {
+        this._match('AWAIT');
+        hasAwait = true;
       }
 
-      const block = this.parseBlock();
-      return ["for-in", [], range, byExpr, null, block];
-    } else {
-      // FOR ForVariables FORIN/FOROF/FORFROM Expression
-      const vars = this.parseForVariables();
+      // Check for OWN (FOR OWN ForVariables FOROF...)
+      let hasOwn = false;
+      if (this.la.kind === 'OWN') {
+        this._match('OWN');
+        hasOwn = true;
+      }
 
-      // Check loop type
-      if (this.la.kind === 'FORIN') {
-        this._match('FORIN');
-        const expr = this.parseExpression();
+      // Check what comes next: ForVariables or Range
+      // Note: Range loops (FOR [1..10]) only valid without AWAIT/OWN
+      if (this.la.kind === '[' && !hasAwait && !hasOwn) {
+        // FOR Range Block (simple range-based loop)
+        const range = this.parseRange();
 
         // Optional BY
         let byExpr = null;
@@ -3251,290 +2581,225 @@ parseFor() {
           byExpr = this.parseExpression();
         }
 
-        // Optional WHEN
-        let whenExpr = null;
-        if (this.la.kind === 'WHEN') {
-          this._match('WHEN');
-          whenExpr = this.parseExpression();
-        }
-
         const block = this.parseBlock();
-        return ["for-in", vars, expr, byExpr, whenExpr, block];
-      } else if (this.la.kind === 'FOROF') {
-        this._match('FOROF');
-        const expr = this.parseExpression();
-
-        // Optional WHEN
-        let whenExpr = null;
-        if (this.la.kind === 'WHEN') {
-          this._match('WHEN');
-          whenExpr = this.parseExpression();
-        }
-
-        const block = this.parseBlock();
-        return ["for-of", vars, expr, hasOwn, whenExpr, block];
-      } else if (this.la.kind === 'FORFROM') {
-        this._match('FORFROM');
-        const expr = this.parseExpression();
-
-        // Optional WHEN
-        let whenExpr = null;
-        if (this.la.kind === 'WHEN') {
-          this._match('WHEN');
-          whenExpr = this.parseExpression();
-        }
-
-        const block = this.parseBlock();
-        return ["for-from", vars, expr, hasAwait, whenExpr, block];
+        return ["for-in", [], range, byExpr, null, block];
       } else {
-        this._error(['FORIN', 'FOROF', 'FORFROM'], "Expected for loop type");
+        // FOR ForVariables FORIN/FOROF/FORFROM Expression
+        const vars = this.parseForVariables();
+
+        // Check loop type
+        if (this.la.kind === 'FORIN') {
+          this._match('FORIN');
+          const expr = this.parseExpression();
+
+          // Optional BY
+          let byExpr = null;
+          if (this.la.kind === 'BY') {
+            this._match('BY');
+            byExpr = this.parseExpression();
+          }
+
+          // Optional WHEN
+          let whenExpr = null;
+          if (this.la.kind === 'WHEN') {
+            this._match('WHEN');
+            whenExpr = this.parseExpression();
+          }
+
+          const block = this.parseBlock();
+          return ["for-in", vars, expr, byExpr, whenExpr, block];
+        } else if (this.la.kind === 'FOROF') {
+          this._match('FOROF');
+          const expr = this.parseExpression();
+
+          // Optional WHEN
+          let whenExpr = null;
+          if (this.la.kind === 'WHEN') {
+            this._match('WHEN');
+            whenExpr = this.parseExpression();
+          }
+
+          const block = this.parseBlock();
+          return ["for-of", vars, expr, hasOwn, whenExpr, block];
+        } else if (this.la.kind === 'FORFROM') {
+          this._match('FORFROM');
+          const expr = this.parseExpression();
+
+          // Optional WHEN
+          let whenExpr = null;
+          if (this.la.kind === 'WHEN') {
+            this._match('WHEN');
+            whenExpr = this.parseExpression();
+          }
+
+          const block = this.parseBlock();
+          return ["for-from", vars, expr, hasAwait, whenExpr, block];
+        } else {
+          this._error(['FORIN', 'FOROF', 'FORFROM'], "Expected for loop type");
+        }
       }
+    } else {
+      // Not FOR keyword at all
+      this._error(['FOR'], "Invalid For");
     }
-  } else {
-    // Not FOR keyword at all
-    this._error(['FOR'], "Invalid For");
-  }
-}
-
-parseForValue() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseForValue(). Possible grammar cycle.");
-  }
-}
-try {
-  const forVar = this.parseForVar();
-
-  // Check for default value
-  if (this.la.kind === '=') {
-    this._match('=');
-    const defaultExpr = this.parseExpression();
-    return ["default", forVar, defaultExpr];
   }
 
-  // No default - just return the variable
-  return forVar;
-  } finally {
-    if (this.trackDepth) this.depth--;
+  parseForValue() {
+    const forVar = this.parseForVar();
+
+    // Check for default value
+    if (this.la.kind === '=') {
+      this._match('=');
+      const defaultExpr = this.parseExpression();
+      return ["default", forVar, defaultExpr];
+    }
+
+    // No default - just return the variable
+    return forVar;
   }
-}
 
 parseForVar() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseForVar(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'IDENTIFIER': return this.parseIdentifier();
+    switch (this.la.kind) {    case 'IDENTIFIER': return this.parseIdentifier();
     case '@': return this.parseThisProperty();
     case '[': return this.parseArray();
     case '{': return this.parseObject();default:
   this._error(['IDENTIFIER', '@', '[', '{'], "Invalid ForVar");
-  }
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
-
-parseForVariables() {
-  const first = this.parseForValue();
-
-  // Check for comma (two variables: value, index)
-  if (this.la.kind === ',') {
-    this._match(',');
-    const second = this.parseForValue();
-    return [first, second];
+    }
   }
 
-  // Just one variable
-  return [first];
-}
+  parseForVariables() {
+    const first = this.parseForValue();
 
-parseSwitch() {
-  this._match('SWITCH');
+    // Check for comma (two variables: value, index)
+    if (this.la.kind === ',') {
+      this._match(',');
+      const second = this.parseForValue();
+      return [first, second];
+    }
 
-  // Lookahead: if INDENT, no discriminant; otherwise parse Expression
-  let discriminant = null;
-  if (this.la.kind !== 'INDENT') {
-    discriminant = this.parseExpression();
+    // Just one variable
+    return [first];
   }
 
-  // Now expect INDENT
-  this._match('INDENT');
+  parseSwitch() {
+    this._match('SWITCH');
 
-  // Parse when clauses
-  const whens = this.parseWhens();
+    // Lookahead: if INDENT, no discriminant; otherwise parse Expression
+    let discriminant = null;
+    if (this.la.kind !== 'INDENT') {
+      discriminant = this.parseExpression();
+    }
 
-  // Check for ELSE
-  let elseBlock = null;
-  if (this.la.kind === 'ELSE') {
-    this._match('ELSE');
-    elseBlock = this.parseBlock();
+    // Now expect INDENT
+    this._match('INDENT');
+
+    // Parse when clauses
+    const whens = this.parseWhens();
+
+    // Check for ELSE
+    let elseBlock = null;
+    if (this.la.kind === 'ELSE') {
+      this._match('ELSE');
+      elseBlock = this.parseBlock();
+    }
+
+    this._match('OUTDENT');
+
+    return ["switch", discriminant, whens, elseBlock];
   }
-
-  this._match('OUTDENT');
-
-  return ["switch", discriminant, whens, elseBlock];
-}
 
 parseWhens() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseWhens(). Possible grammar cycle.");
-  }
-}
-try {
 // List pattern: Whens → When WhensTail
     const $$1 = this.parseWhen();
-const $$2 = this.parseWhensTail();
-    return [$$1, ...$$2];  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
+const $$2 = this.parseWhensTail();return [$$1, ...$$2];  }
 
 parseWhensTail() {
-switch (this.la.kind) {    case 'LEADING_WHEN':
+    switch (this.la.kind) {    case 'LEADING_WHEN':
       {
       const $$1 = this.parseWhen();
       const $$2 = this.parseWhensTail();
       return [$$1, ...$$2];
-      }default:      // ε production
-      return [];  }
-}
-
-parseWhen() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseWhen(). Possible grammar cycle.");
-  }
-}
-try {
-  this._match('LEADING_WHEN');
-  const args = this.parseSimpleArgs();
-  const block = this.parseBlock();
-
-  // Optionally consume trailing TERMINATOR (for when clauses in switch)
-  if (this.la.kind === 'TERMINATOR') {
-    this._match('TERMINATOR');
+      }      default:      // ε production
+      return [];    }
   }
 
-  return ["when", args, block];
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
+  parseWhen() {
+    this._match('LEADING_WHEN');
+    const args = this.parseSimpleArgs();
+    const block = this.parseBlock();
 
-parseIfBlock() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseIfBlock(). Possible grammar cycle.");
+    // Optionally consume trailing TERMINATOR (for when clauses in switch)
+    if (this.la.kind === 'TERMINATOR') {
+      this._match('TERMINATOR');
+    }
+
+    return ["when", args, block];
   }
-}
-try {
-    const $$1 = this._match('IF');
+
+parseIfBlock() {const $$1 = this._match('IF');
       const $$2 = this.parseOperation();
       const $$3 = this.parseBlock();
-      return ["if", $$2, $$3];  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
+      return ["if", $$2, $$3];  }
 
-parseUnlessBlock() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseUnlessBlock(). Possible grammar cycle.");
-  }
-}
-try {
-  this._match('UNLESS');
-  const condition = this.parseOperation();
-  const thenBlock = this.parseBlock();
+  parseUnlessBlock() {
+    this._match('UNLESS');
+    const condition = this.parseOperation();
+    const thenBlock = this.parseBlock();
 
-  // Check for ELSE
-  if (this.la.kind === 'ELSE') {
-    this._match('ELSE');
-    const elseBlock = this.parseBlock();
-    // unless with else = if not
-    return ["if", ["!", condition], thenBlock, elseBlock];
-  }
-
-  // No else - just unless
-  return ["unless", condition, thenBlock];
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
-
-parseIf() {
-  // Parse IfBlock or UnlessBlock
-  let result;
-  if (this.la.kind === 'IF') {
-    result = this.parseIfBlock();
-  } else if (this.la.kind === 'UNLESS') {
-    result = this.parseUnlessBlock();
-  } else {
-    this._error(['IF', 'UNLESS'], "Invalid If");
-  }
-
-  // Check for ELSE continuation
-  if (this.la.kind === 'ELSE') {
-    this._match('ELSE');
-
-    // Lookahead: Is it ELSE If (else-if) or ELSE Block (final else)?
-    if (this.la.kind === 'IF' || this.la.kind === 'UNLESS') {
-      // ELSE If - right-recursive else-if chain!
-      const elseIf = this.parseIf();  // Recursive call
-      // Append else-if to result
-      if (result.length === 3) {
-        return ["if", result[1], result[2], elseIf];
-      } else {
-        return [...result, elseIf];
-      }
-    } else {
-      // ELSE Block - final else
+    // Check for ELSE
+    if (this.la.kind === 'ELSE') {
+      this._match('ELSE');
       const elseBlock = this.parseBlock();
-      // Append else block to if
-      if (result.length === 3) {
-        return ["if", result[1], result[2], elseBlock];
+      // unless with else = if not
+      return ["if", ["!", condition], thenBlock, elseBlock];
+    }
+
+    // No else - just unless
+    return ["unless", condition, thenBlock];
+  }
+
+  parseIf() {
+    // Parse IfBlock or UnlessBlock
+    let result;
+    if (this.la.kind === 'IF') {
+      result = this.parseIfBlock();
+    } else if (this.la.kind === 'UNLESS') {
+      result = this.parseUnlessBlock();
+    } else {
+      this._error(['IF', 'UNLESS'], "Invalid If");
+    }
+
+    // Check for ELSE continuation
+    if (this.la.kind === 'ELSE') {
+      this._match('ELSE');
+
+      // Lookahead: Is it ELSE If (else-if) or ELSE Block (final else)?
+      if (this.la.kind === 'IF' || this.la.kind === 'UNLESS') {
+        // ELSE If - right-recursive else-if chain!
+        const elseIf = this.parseIf();  // Recursive call
+        // Append else-if to result
+        if (result.length === 3) {
+          return ["if", result[1], result[2], elseIf];
+        } else {
+          return [...result, elseIf];
+        }
       } else {
-        return [...result, elseBlock];
+        // ELSE Block - final else
+        const elseBlock = this.parseBlock();
+        // Append else block to if
+        if (result.length === 3) {
+          return ["if", result[1], result[2], elseBlock];
+        } else {
+          return [...result, elseBlock];
+        }
       }
     }
-  }
 
-  return result;
-}
+    return result;
+  }
 
 parseOperationLine() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseOperationLine(). Possible grammar cycle.");
-  }
-}
-try {
-switch (this.la.kind) {    case 'UNARY':
+    switch (this.la.kind) {    case 'UNARY':
       {
       const $$1 = this._match('UNARY');
       const $$2 = this.parseExpressionLine();
@@ -3551,27 +2816,15 @@ switch (this.la.kind) {    case 'UNARY':
       const $$1 = this._match('DO_IIFE');
       const $$2 = this.parseCodeLine();
       return ["do-iife", $$2];
-      }default:      this._error(['UNARY', 'DO', 'DO_IIFE'], "Invalid OperationLine");  }
-  } finally {
-    if (this.trackDepth) this.depth--;
+      }      default:      this._error(['UNARY', 'DO', 'DO_IIFE'], "Invalid OperationLine");    }
   }
-}
 
 parseOperation() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseOperation(). Possible grammar cycle.");
-  }
-}
-try {
-// Binary operator iteration (FULL IMPLEMENTATION!)
-let left;
+    // Binary operator iteration (FULL IMPLEMENTATION!)
+    let left;
 
-// Parse base expression
-switch (this.la.kind) {    case 'IDENTIFIER':
+    // Parse base expression
+    switch (this.la.kind) {    case 'IDENTIFIER':
       {
       const $$1 = this.parseValue();
       left = $$1;;
@@ -3786,11 +3039,11 @@ switch (this.la.kind) {    case 'IDENTIFIER':
       break;
       }default:
   this._error([], "Invalid Operation");
-}
+    }
 
-// Iterate through binary operators
-while (true) {
-  switch (this.la.kind) {      case '=': {
+    // Iterate through binary operators
+    while (true) {
+      switch (this.la.kind) {      case '=': {
         this._match('=');
         const right = this.parseExpression();
         const [$$1, $$2, $$3] = [left, '=', right];
@@ -4053,130 +3306,101 @@ while (true) {
         const [$$1, $$2] = [left, '?'];
         left = ["?", left];
         break;
-      }      case 'SPACE?': {
-        // Ternary operator: condition ? trueBranch : falseBranch
-        // Branches can contain operators, so use parseOperation
-        this._match('SPACE?');
-        const trueBranch = this.parseOperation();
-        this._match(':');
-        const falseBranch = this.parseOperation();
-        left = ["?:", left, trueBranch, falseBranch];
-        break;
+      }        case 'SPACE?': {
+          // Ternary operator: condition ? trueBranch : falseBranch
+          // Branches can contain operators, so use parseOperation
+          this._match('SPACE?');
+          const trueBranch = this.parseOperation();
+          this._match(':');
+          const falseBranch = this.parseOperation();
+          left = ["?:", left, trueBranch, falseBranch];
+          break;
+        }
+        case 'FOR': {
+          // Comprehension: Expression FOR ForVariables FORIN/FOROF/FORFROM Expression ...
+          this._match('FOR');
+
+          // Check for AWAIT (for-from)
+          let isAsync = false;
+          if (this.la.kind === 'AWAIT') {
+            this._match('AWAIT');
+            isAsync = true;
+          }
+
+          // Check for OWN (for-of)
+          let isOwn = false;
+          if (this.la.kind === 'OWN') {
+            this._match('OWN');
+            isOwn = true;
+          }
+
+          // Parse variables
+          const vars = this.parseForVariables();
+
+          // Determine loop type
+          let loopType;
+          if (this.la.kind === 'FORIN') {
+            this._match('FORIN');
+            loopType = 'for-in';
+          } else if (this.la.kind === 'FOROF') {
+            this._match('FOROF');
+            loopType = 'for-of';
+          } else if (this.la.kind === 'FORFROM') {
+            this._match('FORFROM');
+            loopType = 'for-from';
+          } else {
+            this._error(['FORIN', 'FOROF', 'FORFROM'], "Expected for loop type");
+          }
+
+          // Parse iterable
+          const iterable = this.parseValue();  // Use Value to avoid cycles
+
+          // Parse optional BY (step)
+          let step = null;
+          if (this.la.kind === 'BY') {
+            this._match('BY');
+            step = this.parseValue();
+          }
+
+          // Parse optional WHEN (guard)
+          let guard = null;
+          if (this.la.kind === 'WHEN') {
+            this._match('WHEN');
+            // Parse guard - use parseOperation to handle complex expressions
+            // (x > 1 && x < 4, !isEmpty, etc.)
+            guard = this.parseOperation();
+          }
+
+          // Build loop spec based on type
+          let loopSpec;
+          if (loopType === 'for-in') {
+            loopSpec = [loopType, vars, iterable, step];
+          } else if (loopType === 'for-of') {
+            loopSpec = [loopType, vars, iterable, isOwn];
+          } else {
+            loopSpec = [loopType, vars, iterable, isAsync, null];
+          }
+
+          // Build comprehension
+          // NOTE: 'left' at this point is the full expression including any operators
+          // e.g., for "sum += i for i in arr", left is already ["+=" "sum" "i"]
+          const guards = guard ? [guard] : [];
+          left = ["comprehension", left, [loopSpec], guards];
+          return left;  // Comprehensions end the operation chain
+        }
+        default:
+          return left;
       }
-      case 'FOR': {
-        // Comprehension: Expression FOR ForVariables FORIN/FOROF/FORFROM Expression ...
-        this._match('FOR');
-
-        // Check for AWAIT (for-from)
-        let isAsync = false;
-        if (this.la.kind === 'AWAIT') {
-          this._match('AWAIT');
-          isAsync = true;
-        }
-
-        // Check for OWN (for-of)
-        let isOwn = false;
-        if (this.la.kind === 'OWN') {
-          this._match('OWN');
-          isOwn = true;
-        }
-
-        // Parse variables
-        const vars = this.parseForVariables();
-
-        // Determine loop type
-        let loopType;
-        if (this.la.kind === 'FORIN') {
-          this._match('FORIN');
-          loopType = 'for-in';
-        } else if (this.la.kind === 'FOROF') {
-          this._match('FOROF');
-          loopType = 'for-of';
-        } else if (this.la.kind === 'FORFROM') {
-          this._match('FORFROM');
-          loopType = 'for-from';
-        } else {
-          this._error(['FORIN', 'FOROF', 'FORFROM'], "Expected for loop type");
-        }
-
-        // Parse iterable
-        const iterable = this.parseValue();  // Use Value to avoid cycles
-
-        // Parse optional BY (step)
-        let step = null;
-        if (this.la.kind === 'BY') {
-          this._match('BY');
-          step = this.parseValue();
-        }
-
-        // Parse optional WHEN (guard)
-        let guard = null;
-        if (this.la.kind === 'WHEN') {
-          this._match('WHEN');
-          // Parse guard - use parseOperation to handle complex expressions
-          // (x > 1 && x < 4, !isEmpty, etc.)
-          guard = this.parseOperation();
-        }
-
-        // Build loop spec based on type
-        let loopSpec;
-        if (loopType === 'for-in') {
-          loopSpec = [loopType, vars, iterable, step];
-        } else if (loopType === 'for-of') {
-          loopSpec = [loopType, vars, iterable, isOwn];
-        } else {
-          loopSpec = [loopType, vars, iterable, isAsync, null];
-        }
-
-        // Build comprehension
-        // NOTE: 'left' at this point is the full expression including any operators
-        // e.g., for "sum += i for i in arr", left is already ["+=" "sum" "i"]
-        const guards = guard ? [guard] : [];
-        left = ["comprehension", left, [loopSpec], guards];
-        return left;  // Comprehensions end the operation chain
-      }
-      default:
-        return left;
     }
   }
-  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
 
-parseDoIife() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseDoIife(). Possible grammar cycle.");
-  }
-}
-try {
-    const $$1 = this._match('DO_IIFE');
+parseDoIife() {const $$1 = this._match('DO_IIFE');
       const $$2 = this.parseCode();
-      return ["do-iife", $$2];  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}
+      return ["do-iife", $$2];  }
 
-parse$accept() {
-// Recursion depth tracking (optional for performance)
-if (this.trackDepth) {
-  this.depth++;
-  if (this.depth > this.maxDepth) {
-    this.depth--;
-    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parse$accept(). Possible grammar cycle.");
-  }
-}
-try {
-    const $$1 = this.parseRoot();
+parse$accept() {const $$1 = this.parseRoot();
       const $$2 = this._match('$end');
-      return [$$1, $$2];  } finally {
-    if (this.trackDepth) this.depth--;
-  }
-}}
+      return [$$1, $$2];  }}
 
 const parser = new Parser();
 
