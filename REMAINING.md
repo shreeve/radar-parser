@@ -11,7 +11,7 @@
 ## 🏆 **Session Achievement Summary**
 
 - **Starting:** 823/938 (87.7%)
-- **Current:** 928/938 (98.9%)  
+- **Current:** 928/938 (98.9%)
 - **Progress:** +105 tests (+11.2%) 🚀
 - **Perfect files:** 15 (539/539 tests!)
 - **OUTDENT mission:** 100% complete (28/28)
@@ -72,7 +72,7 @@ if (discriminant === null) {
     const cond = (Array.isArray(conditions) && conditions.length === 1)
       ? conditions[0]  // Unwrap
       : conditions;
-    
+
     emit(`if (${generate(cond)}) {`);  // Don't call as function!
     // ... generate body ...
   }
@@ -363,9 +363,9 @@ sum += x for x in arr  # If parseExpression(), FOR gets consumed by +=
 
 ### **Phase: Codegen Fixes**
 
-**Target:** 932/938 (99.4%)  
-**Time:** 2-3 hours  
-**Risk:** Low  
+**Target:** 932/938 (99.4%)
+**Time:** 2-3 hours
+**Risk:** Low
 **Files:** codegen.js only
 
 **Steps:**
@@ -377,7 +377,7 @@ sum += x for x in arr  # If parseExpression(), FOR gets consumed by +=
    - Test: Run control.rip and stabilization.rip
 
 2. **Fix soak super**
-   - Locate super call generation  
+   - Locate super call generation
    - Add `node[0] === '?super'` case
    - Generate `super?.(args)` syntax
    - Test: Run classes.rip
@@ -571,8 +571,8 @@ bun test/runner-hybrid.js test/rip/control.rip    # Switch should work
 
 ### **With Codegen Fixes**
 
-**Tests:** 932/938 (99.4%)  
-**Perfect files:** 15+ (540+ tests)  
+**Tests:** 932/938 (99.4%)
+**Perfect files:** 15+ (540+ tests)
 **Changes:**
 - lexer.js: UNMODIFIED ✅
 - codegen.js: 2 fixes (~10 lines)
@@ -581,7 +581,7 @@ bun test/runner-hybrid.js test/rip/control.rip    # Switch should work
 
 **Remaining 6 tests (0.6%):**
 - 1 inline arrow
-- 1 FOR ambiguity  
+- 1 FOR ambiguity
 - 2 postfix loops
 - 1 postfix range
 - 1 nested precedence
@@ -592,8 +592,8 @@ bun test/runner-hybrid.js test/rip/control.rip    # Switch should work
 
 ### **Without Codegen Fixes (Current)**
 
-**Tests:** 928/938 (98.9%)  
-**Perfect files:** 15 (539 tests)  
+**Tests:** 928/938 (98.9%)
+**Perfect files:** 15 (539 tests)
 **Changes:**
 - lexer.js: UNMODIFIED ✅
 - codegen.js: UNMODIFIED ✅
