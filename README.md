@@ -62,7 +62,7 @@ bun run test:basic        # 54/54 ✅
 bun run test:comprehensions # 29/29 ✅
 bun run test:errors       # 33/33 ✅
 bun run test:async        # 36/36 ✅
-# Also perfect: properties (29), strings (78), arrows (10), data (18), 
+# Also perfect: properties (29), strings (78), arrows (10), data (18),
 # parens (25), compatibility (46), regex (46), modules (22)
 
 # Nearly perfect

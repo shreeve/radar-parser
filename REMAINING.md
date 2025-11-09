@@ -25,7 +25,7 @@
 ## 📊 Final 6 Failures: All LL(1) Design Constraints
 
 **With architectural constraints maintained:**
-- ✅ lexer.js: UNMODIFIED  
+- ✅ lexer.js: UNMODIFIED
 - ✅ codegen.js: UNMODIFIED
 - ✅ LL(1) compliance: MAINTAINED
 
@@ -177,7 +177,7 @@ for i in [1, 2, 3]
     sum += i * j
 ```
 
-**Expected:** 180  
+**Expected:** 180
 **Actual:** 12 (from `((sum += i) * j)`)
 
 **Problem:** Operator precedence in compound assignment
@@ -262,11 +262,11 @@ All tests passing in:
 
 ### **All Are Legitimate Design Constraints**
 
-**1. Soak super (1 test)** - JavaScript/codegen limitation  
-**2. FOR [a, b=99] IN (1 test)** - LL(1) ambiguity (workaround: use AWAIT)  
-**3. Postfix range (1 test)** - Removed pattern (workaround exists)  
-**4. Postfix while (1 test)** - Cycle elimination (workaround: prefix form)  
-**5. Postfix until (1 test)** - Cycle elimination (workaround: prefix form)  
+**1. Soak super (1 test)** - JavaScript/codegen limitation
+**2. FOR [a, b=99] IN (1 test)** - LL(1) ambiguity (workaround: use AWAIT)
+**3. Postfix range (1 test)** - Removed pattern (workaround exists)
+**4. Postfix while (1 test)** - Cycle elimination (workaround: prefix form)
+**5. Postfix until (1 test)** - Cycle elimination (workaround: prefix form)
 **6. Nested for-in (1 test)** - Comprehension priority (workaround: explicit parens)
 
 **Each represents a conscious optimization that enabled dozens of other tests.**
@@ -352,51 +352,51 @@ All tests passing in:
 
 ### **Test 1: Soak Super Call**
 
-**File:** `test/rip/classes.rip`  
-**Pattern:** `super?(x)`  
-**AST:** `["?super", "x"]` ✅  
-**Codegen:** `typeof super === 'function' ? super(x) : undefined` ❌  
-**Issue:** Invalid JavaScript - super can't be used in conditional  
+**File:** `test/rip/classes.rip`
+**Pattern:** `super?(x)`
+**AST:** `["?super", "x"]` ✅
+**Codegen:** `typeof super === 'function' ? super(x) : undefined` ❌
+**Issue:** Invalid JavaScript - super can't be used in conditional
 **Blocked by:** codegen.js UNMODIFIED, JavaScript language limitation
 
 ---
 
 ### **Test 2: FOR Destructuring with Defaults**
 
-**File:** `test/rip/loops.rip`  
-**Pattern:** `for [a, b = 99, c = 88] in arr`  
-**Issue:** Ambiguous with `for [1..10]` range syntax  
-**Blocked by:** LL(1) single-token lookahead  
+**File:** `test/rip/loops.rip`
+**Pattern:** `for [a, b = 99, c = 88] in arr`
+**Issue:** Ambiguous with `for [1..10]` range syntax
+**Blocked by:** LL(1) single-token lookahead
 **Workaround:** `for await [a, b = 99] from arr` ✅ Works!
 
 ---
 
 ### **Test 3: Postfix Range**
 
-**File:** `test/rip/loops.rip`  
-**Pattern:** `(expr for [1...5])`  
-**Issue:** Removed from grammar (conflicts)  
-**Blocked by:** LL(1) optimization  
+**File:** `test/rip/loops.rip`
+**Pattern:** `(expr for [1...5])`
+**Issue:** Removed from grammar (conflicts)
+**Blocked by:** LL(1) optimization
 **Workaround:** `for i in [1...5]\n  expr` ✅ Works!
 
 ---
 
 ### **Tests 4-5: Postfix While/Until**
 
-**File:** `test/rip/loops.rip`  
-**Patterns:** `i += 1 while i < 5`, `i += 1 until i >= 5`  
-**Issue:** Creates Expression ↔ Statement cycle  
-**Blocked by:** LL(1) no-cycles requirement  
+**File:** `test/rip/loops.rip`
+**Patterns:** `i += 1 while i < 5`, `i += 1 until i >= 5`
+**Issue:** Creates Expression ↔ Statement cycle
+**Blocked by:** LL(1) no-cycles requirement
 **Workaround:** `while i < 5\n  i += 1` ✅ Works!
 
 ---
 
 ### **Test 6: Nested For-In Precedence**
 
-**File:** `test/rip/loops.rip`  
-**Pattern:** `sum += i * j` in nested loop  
-**Issue:** Parses as `((sum += i) * j)` not `sum += (i * j)`  
-**Blocked by:** parseValue() enables 29 comprehension tests  
+**File:** `test/rip/loops.rip`
+**Pattern:** `sum += i * j` in nested loop
+**Issue:** Parses as `((sum += i) * j)` not `sum += (i * j)`
+**Blocked by:** parseValue() enables 29 comprehension tests
 **Workaround:** `sum += (i * j)` ✅ Works!
 
 ---

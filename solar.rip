@@ -1972,7 +1972,7 @@ class Generator
       const params = this.parseParamList();
       this._match('PARAM_END');
       const arrow = this.parseFuncGlyph();
-      
+
       // Check if Block (INDENT) or inline Operation
       if (this.la.kind === 'INDENT') {
         const block = this.parseBlock();
