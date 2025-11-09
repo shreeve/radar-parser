@@ -6,11 +6,7 @@
   "scripts": {
     "parser": "rip solar.rip -r -o rip/parser.js rip/grammar.rip",
     "parser:bumps": "rip solar.rip -r -o bumps/parser.js bumps/bumps-1.js",
-    "test": "bun test/runner-hybrid.js",
-    "test:basic": "bun test/runner-hybrid.js test/rip/basic.rip",
-    "test:operators": "bun test/runner-hybrid.js test/rip/operators.rip",
-    "test:literals": "bun test/runner-hybrid.js test/rip/literals.rip",
-    "test:assignment": "bun test/runner-hybrid.js test/rip/assignment.rip"
+    "test": "bun test/runner.js"
   },
   "keywords": [
     "parser",
