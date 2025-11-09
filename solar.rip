@@ -1476,13 +1476,14 @@ class Generator
 
     action = @_getRDAction(rule, resultVars)
 
-    '''
-  parse''' + typeName + '''() {
-    // List pattern: ''' + typeName + ''' → ''' + element + ''' ''' + tailName + '''\n    const $$1 = this.parse''' + element + '''();
-    const $$2 = this.parse''' + tailName + '''();
-    ''' + action + '''
+    """
+  parse#{typeName}() {
+    // List pattern: #{typeName} → #{element} #{tailName}
+    const $$1 = this.parse#{element}();
+    const $$2 = this.parse#{tailName}();
+    #{action}
   }
-'''
+"""
 
   # Generate binary operator loop (for expression operators)
   _generateBinaryOpLoop: (typeName, rules) ->

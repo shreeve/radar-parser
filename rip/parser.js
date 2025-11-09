@@ -82,10 +82,12 @@ _tokenName(id) {
     return ["program"];
   }
 
-parseBody() {
-// List pattern: Body → Line BodyTail
+  parseBody() {
+    // List pattern: Body → Line BodyTail
     const $$1 = this.parseLine();
-const $$2 = this.parseBodyTail();return [$$1, ...$$2];  }
+    const $$2 = this.parseBodyTail();
+    return [$$1, ...$$2];
+  }
 
   parseBodyTail() {
     if (this.la.kind === 'TERMINATOR') {
@@ -379,10 +381,12 @@ parseString() {
       }      default:      this._error(['STRING', 'STRING_START'], "Invalid String");    }
   }
 
-parseInterpolations() {
-// List pattern: Interpolations → InterpolationChunk InterpolationsTail
+  parseInterpolations() {
+    // List pattern: Interpolations → InterpolationChunk InterpolationsTail
     const $$1 = this.parseInterpolationChunk();
-const $$2 = this.parseInterpolationsTail();return [$$1, ...$$2];  }
+    const $$2 = this.parseInterpolationsTail();
+    return [$$1, ...$$2];
+  }
 
 parseInterpolationsTail() {
     switch (this.la.kind) {    case 'INTERPOLATION_START':
@@ -2397,10 +2401,12 @@ parseOptElisions() {
       }      default:      this._error([','], "Invalid OptElisions");    }
   }
 
-parseElisions() {
-// List pattern: Elisions → Elision ElisionsTail
+  parseElisions() {
+    // List pattern: Elisions → Elision ElisionsTail
     const $$1 = this.parseElision();
-const $$2 = this.parseElisionsTail();return [$$1, ...$$2];  }
+    const $$2 = this.parseElisionsTail();
+    return [$$1, ...$$2];
+  }
 
 parseElisionsTail() {
     switch (this.la.kind) {    case ',':
@@ -2420,10 +2426,12 @@ parseElision() {
       }      default:      this._error([','], "Invalid Elision");    }
   }
 
-parseSimpleArgs() {
-// List pattern: SimpleArgs → Expression SimpleArgsTail
+  parseSimpleArgs() {
+    // List pattern: SimpleArgs → Expression SimpleArgsTail
     const $$1 = this.parseExpression();
-const $$2 = this.parseSimpleArgsTail();return Array.isArray($$2) && $$2.length > 0 ? [$$1, ...$$2] : $$1;  }
+    const $$2 = this.parseSimpleArgsTail();
+    return Array.isArray($$2) && $$2.length > 0 ? [$$1, ...$$2] : $$1;
+  }
 
 parseSimpleArgsTail() {
     switch (this.la.kind) {    case ',':
@@ -2708,10 +2716,12 @@ parseForVar() {
     return ["switch", discriminant, whens, elseBlock];
   }
 
-parseWhens() {
-// List pattern: Whens → When WhensTail
+  parseWhens() {
+    // List pattern: Whens → When WhensTail
     const $$1 = this.parseWhen();
-const $$2 = this.parseWhensTail();return [$$1, ...$$2];  }
+    const $$2 = this.parseWhensTail();
+    return [$$1, ...$$2];
+  }
 
 parseWhensTail() {
     switch (this.la.kind) {    case 'LEADING_WHEN':
