@@ -802,9 +802,9 @@ class Generator
         throw new Error('No lexer provided. Set parser.lexer before calling parse()');
       }
 
-      // ========================================================================
+      // =======================================================================
       // Parse Functions (one per nonterminal)
-      // ========================================================================
+      // =======================================================================
 
     ''' + parseFunctions.join('\n\n') + '''
     }
@@ -824,60 +824,53 @@ class Generator
     try
       # Dispatch table for special handlers (O(1) hash lookup!)
       specialHandlers =
-        Root: @_generateRootSpecial
-        Expression: @_generateExpressionSpecial
-        For: @_generateForSpecial
-        Code: @_generateCodeSpecial
-        Def: @_generateDefSpecial
-        Block: @_generateBlockSpecial
-        If: @_generateIfSpecial
-        UnlessBlock: @_generateUnlessBlockSpecial
-        Assign: @_generateAssignSpecial
-        Assignable: @_generateAssignableSpecial
-        Value: @_generateValueSpecial
-        ArgList: @_generateArgListSpecial
-        ArgElisionList: @_generateArgElisionListSpecial
-        Array: @_generateArraySpecial
-        Object: @_generateObjectSpecial
-        AssignList: @_generateAssignListSpecial
-        AssignObj: @_generateAssignObjSpecial
+        Root:               @_generateRootSpecial
+        Expression:         @_generateExpressionSpecial
+        For:                @_generateForSpecial
+        Code:               @_generateCodeSpecial
+        Def:                @_generateDefSpecial
+        Block:              @_generateBlockSpecial
+        If:                 @_generateIfSpecial
+        UnlessBlock:        @_generateUnlessBlockSpecial
+        Assign:             @_generateAssignSpecial
+        Assignable:         @_generateAssignableSpecial
+        Value:              @_generateValueSpecial
+        ArgList:            @_generateArgListSpecial
+        ArgElisionList:     @_generateArgElisionListSpecial
+        Array:              @_generateArraySpecial
+        Object:             @_generateObjectSpecial
+        AssignList:         @_generateAssignListSpecial
+        AssignObj:          @_generateAssignObjSpecial
         InterpolationChunk: @_generateInterpolationChunkSpecial
-        Slice: @_generateSliceSpecial
-        Class: @_generateClassSpecial
-        Param: @_generateParamSpecial
-        Return: @_generateReturnSpecial
-        Statement: @_generateStatementSpecial
-        Yield: @_generateYieldSpecial
-        Try: @_generateTrySpecial
-        Catch: @_generateCatchSpecial
-        ForVariables: @_generateForVariablesSpecial
-        ForValue: @_generateForValueSpecial
-        Switch: @_generateSwitchSpecial
-        When: @_generateWhenSpecial
-        Invocation: @_generateInvocationSpecial
-        Arguments: @_generateArgumentsSpecial
-        Import: @_generateImportSpecial
-        Export: @_generateExportSpecial
-        ImportSpecifier: @_generateImportSpecifierSpecial
-        ExportSpecifier: @_generateExportSpecifierSpecial
+        Slice:              @_generateSliceSpecial
+        Class:              @_generateClassSpecial
+        Param:              @_generateParamSpecial
+        Return:             @_generateReturnSpecial
+        Statement:          @_generateStatementSpecial
+        Yield:              @_generateYieldSpecial
+        Try:                @_generateTrySpecial
+        Catch:              @_generateCatchSpecial
+        ForVariables:       @_generateForVariablesSpecial
+        ForValue:           @_generateForValueSpecial
+        Switch:             @_generateSwitchSpecial
+        When:               @_generateWhenSpecial
+        Invocation:         @_generateInvocationSpecial
+        Arguments:          @_generateArgumentsSpecial
+        Import:             @_generateImportSpecial
+        Export:             @_generateExportSpecial
+        ImportSpecifier:    @_generateImportSpecifierSpecial
+        ExportSpecifier:    @_generateExportSpecifierSpecial
 
       return specialHandlers[typeName]?.call(this, rules) if specialHandlers[typeName]
 
       # Pattern-based handlers (in priority order)
-      if typeName.endsWith('Tail') and rules.length is 3
-        return @_generateTailSpecial(typeName, rules)
-      else if @_isTailRecursion(typeName, rules)
-        return @_generateListLoop(typeName, rules)
-      else if @_isBinaryOp(typeName, rules)
-        return @_generateBinaryOpLoop(typeName, rules)
-      else if typeName is 'Operation'
-        return @_generateOperationIterative(typeName, rules)
-      else if @_isAccessorChain(typeName, rules)
-        return @_generateAccessorLoop(typeName, rules)
-      else if @_isDispatchRule(rules)
-        return @_generateSmartDispatch(typeName, rules)
-      else
-        return @_generateSwitchDispatch(typeName, rules)
+      return @_generateTailSpecial        typeName, rules if typeName.endsWith('Tail') and rules.length is 3
+      return @_generateListLoop           typeName, rules if @_isTailRecursion(typeName, rules)
+      return @_generateBinaryOpLoop       typeName, rules if @_isBinaryOp(typeName, rules)
+      return @_generateOperationIterative typeName, rules if typeName is 'Operation'
+      return @_generateAccessorLoop       typeName, rules if @_isAccessorChain(typeName, rules)
+      return @_generateSmartDispatch      typeName, rules if @_isDispatchRule(rules)
+      return @_generateSwitchDispatch     typeName, rules
 
     catch error
       console.error "Error generating #{typeName}:", error.message
