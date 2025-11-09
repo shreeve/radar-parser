@@ -1,13 +1,17 @@
 #!/usr/bin/env bun
 
 /**
- * Rip Test Runner for RD Parser
+ * Rip Test Runner
  *
- * Runs .rip test files using our recursive descent parser.
+ * Runs .rip test files with three test types:
+ * - test(name, code, expected) - Execute and compare result
+ * - code(name, code, expected) - Compile and compare generated code
+ * - fail(name, code) - Expect compilation/execution to fail
  *
  * Usage:
- *   bun test/runner-hybrid.js test/rip
- *   bun test/runner-hybrid.js test/rip/operators.rip
+ *   bun test/runner.js test/rip                 # Run directory
+ *   bun test/runner.js test/rip/operators.rip   # Run file
+ *   bun test/runner.js test/rip test/cs2        # Multiple paths
  */
 
 import { readFileSync, readdirSync, statSync } from 'fs';
@@ -31,20 +35,21 @@ let fileTests = { pass: 0, fail: 0 };
 let totalTests = { pass: 0, fail: 0 };
 let failures = [];
 
-// Normalize code for comparison
+// Normalize code for comparison (remove extra whitespace, normalize semicolons)
 function normalizeCode(code) {
   return code
     .trim()
-    .replace(/^\/\/.*\n/gm, '')
-    .replace(/;\s*$/gm, '')
-    .replace(/\s+/g, ' ')
-    .replace(/\s*([{}();,=])\s*/g, '$1')
-    .replace(/;}/g, '}')
+    .replace(/^\/\/.*\n/gm, '')           // Remove comment lines
+    .replace(/;\s*$/gm, '')               // Remove trailing semicolons from lines
+    .replace(/\s+/g, ' ')                 // Collapse whitespace
+    .replace(/\s*([{}();,=])\s*/g, '$1')  // Remove spaces around punctuation
+    .replace(/;}/g, '}')                  // Remove semicolon before closing brace
     .trim();
 }
 
 // Test helper: Execute code and compare result
-// Note: Async to support await - but await on non-promises is instant
+// Note: This is async to support await - but await on non-promises is instant,
+// so synchronous tests have zero performance impact
 async function test(name, code, expected) {
   try {
     const result = compile(code);
@@ -117,7 +122,11 @@ function code(name, sourceCode, expectedCode) {
         test: name,
         type: 'code',
         expected: expectedCode,
-        actual: result.code
+        actual: result.code,
+        normalized: {
+          expected: expectedNorm,
+          actual: actualNorm
+        }
       });
     }
   } catch (error) {
@@ -134,21 +143,34 @@ function code(name, sourceCode, expectedCode) {
   }
 }
 
-// Test helper: Expect failure
+// Test helper: Expect failure (compilation or execution)
 function fail(name, sourceCode) {
   try {
     const result = compile(sourceCode);
+
+    // Try to execute - should fail
     try {
       eval(result.code);
+
+      // If we get here, test failed (should have thrown)
       fileTests.fail++;
       totalTests.fail++;
-      console.log(`  ${colors.red}✗${colors.reset} ${name} (should have failed)`);
+      console.log(`  ${colors.red}✗${colors.reset} ${name}`);
+      failures.push({
+        file: currentFile,
+        test: name,
+        type: 'fail',
+        reason: 'Expected failure but succeeded',
+        code: result.code
+      });
     } catch (execError) {
+      // Execution failed as expected
       fileTests.pass++;
       totalTests.pass++;
       console.log(`  ${colors.green}✓${colors.reset} ${name}`);
     }
   } catch (compileError) {
+    // Compilation failed as expected
     fileTests.pass++;
     totalTests.pass++;
     console.log(`  ${colors.green}✓${colors.reset} ${name}`);
@@ -163,7 +185,6 @@ async function runTestFile(filePath) {
   console.log(`\n${colors.cyan}${currentFile}${colors.reset}`);
 
   try {
-    // Use OUR RD compiler to compile the test file (fast, no process spawn!)
     const source = readFileSync(filePath, 'utf-8');
     const result = compile(source);
     const jsCode = result.code;
@@ -177,6 +198,12 @@ async function runTestFile(filePath) {
     console.log(`    ${error.message}`);
     fileTests.fail++;
     totalTests.fail++;
+    failures.push({
+      file: currentFile,
+      test: 'File execution',
+      type: 'file',
+      error: error.message
+    });
   }
 
   return fileTests;
@@ -198,6 +225,7 @@ function findTestFiles(path) {
     }
   } catch (error) {
     console.error(`${colors.red}Error reading path: ${path}${colors.reset}`);
+    console.error(`  ${error.message}`);
   }
 
   return [];
@@ -214,10 +242,23 @@ function printFailures() {
     if (failure.error) {
       console.log(`   Error: ${failure.error.split('\n')[0]}`);
     }
+
     if (failure.type === 'test') {
       console.log(`   Expected: ${failure.expected}`);
       console.log(`   Actual:   ${failure.actual}`);
     }
+
+    if (failure.type === 'code') {
+      console.log(`   Expected code:`);
+      console.log(`   ${failure.expected}`);
+      console.log(`   Actual code:`);
+      console.log(`   ${failure.actual}`);
+    }
+
+    if (failure.type === 'fail') {
+      console.log(`   ${failure.reason}`);
+    }
+
     console.log('');
   });
 
@@ -228,11 +269,13 @@ function printFailures() {
 
 // Main
 async function main(args) {
+  // Default to test/rip if no arguments provided
   if (args.length === 0) {
     args = ['test/rip'];
     console.log(`${colors.cyan}Running default: test/rip${colors.reset}\n`);
   }
 
+  // Collect all test files from arguments
   const testFiles = args.flatMap(arg => findTestFiles(arg));
 
   if (testFiles.length === 0) {
@@ -242,6 +285,7 @@ async function main(args) {
 
   console.log(`${colors.bright}Running ${testFiles.length} test file(s)...${colors.reset}`);
 
+  // Run each test file (await for async support)
   for (const file of testFiles) {
     await runTestFile(file);
   }
@@ -271,5 +315,9 @@ async function main(args) {
   process.exit(totalTests.fail > 0 ? 1 : 0);
 }
 
-// Run
-await main(process.argv.slice(2));
+// Run if called directly
+if (import.meta.main) {
+  await main(process.argv.slice(2));
+}
+
+export { test, code, fail };
