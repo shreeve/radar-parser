@@ -3,7 +3,7 @@
 **Generate blazing-fast recursive descent parsers from LL(1) grammars**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-932%2F938%20(99.4%25)-brightgreen)](test/)
+[![Tests](https://img.shields.io/badge/Tests-932%2F937%20(99.5%25)-brightgreen)](test/)
 [![Parser](https://img.shields.io/badge/Parser-99%2F99%20functions-brightgreen)](#)
 [![Perfect Files](https://img.shields.io/badge/Perfect%20Files-15%2F23-brightgreen)](#)
 
@@ -52,7 +52,7 @@ cd radar
 ```bash
 # Run the test suite
 bun run test
-# Output: 932/938 tests passing (99.4%) - ALMOST 100%!
+# Output: 932/937 tests passing (99.5%) - ALMOST 100%!
 
 # 15 Perfect test files (539/539 tests at 100%)!
 bun run test:operators    # 96/96 ✅
@@ -251,7 +251,7 @@ JavaScript: let x;\nx = 5;
 ### Test Results
 
 ```
-Full Suite:     932/938 tests (99.4%) ✅ ALMOST 100%!
+Full Suite:     932/937 tests (99.5%) ✅ ALMOST 100%!
 Perfect Files:  operators.rip (96/96, 100%)
                 literals.rip (30/30, 100%)
                 properties.rip (29/29, 100%)
@@ -294,7 +294,7 @@ compile('def fib(n)\n  if n <= 1\n    n\n  else\n    fib(n-1) + fib(n-2)')  // R
 
 ### What's Next
 
-**Current:** 99.4% (932/938 tests passing!)
+**Current:** 99.4% (932/937 tests passing!)
 
 **Remaining 6 tests (0.6%):**
 - 1 soak super - JavaScript/codegen limitation
@@ -456,7 +456,7 @@ radar/
 │   ├── codegen.js  # JavaScript generator
 │   └── compiler.js # Complete pipeline
 ├── bumps/          # BUMPS/MUMPS compiler
-├── test/           # 938 test cases
+├── test/           # 937 test cases
 └── README.md       # This file
 ```
 
@@ -491,7 +491,7 @@ No cryptic conflict resolution or complex precedence rules - just clean, declara
 ### 3. Proven Technology
 
 **Real compilers included:**
-- ✅ Rip: 932/938 tests passing (99.4%) - **15 files at 100%!**
+- ✅ Rip: 932/937 tests passing (99.4%) - **15 files at 100%!**
 - ✅ BUMPS/MUMPS: Grammar optimized, ready to use
 - ✅ Both use the SAME solar.rip generator
 
@@ -653,10 +653,10 @@ operators = """
 - [x] Universal parser generator (SLR + RD modes)
 - [x] LL(1) grammar optimization (93% violations eliminated)
 - [x] 99/99 parse functions generate successfully
-- [x] Rip compiler at 57.6% (540/938 tests)
+- [x] Rip compiler at 57.6% (540/937 tests)
 - [x] BUMPS grammars optimized
 - [x] Clean architecture (lexer/codegen untouched!)
-- [x] Comprehensive test suite (938 tests)
+- [x] Comprehensive test suite (937 tests)
 - [x] Pattern recognition (12 special handlers)
 
 ### In Progress 🚧
@@ -698,7 +698,7 @@ radar/
 │   ├── bumps.js        # Original
 │   └── bumps.sexp      # Original s-expression
 │
-└── test/               # Test suite (938 tests)
+└── test/               # Test suite (937 tests)
     ├── runner-hybrid.js  # Test runner
     └── rip/              # Test cases (23 files)
 ```
@@ -776,7 +776,7 @@ With significant contributions to:
 - Parser theory: LL(1), FIRST/FOLLOW/SELECT sets
 - Practical engineering: Real grammars, real optimizations
 - Clean architecture: Perfect component separation
-- Systematic validation: 938-test suite
+- Systematic validation: 937-test suite
 
 ---
 
@@ -797,7 +797,7 @@ With significant contributions to:
 ✅ **Working Compilers** - Rip (99.4%) + BUMPS (ready)
 ✅ **Clean Architecture** - Lexer/Parser/CodeGen separation
 ✅ **Real Performance** - 5-10x faster than table-driven
-✅ **Production Ready** - 932/938 tests passing, **15 files at 100%**
+✅ **Production Ready** - 932/937 tests passing, **15 files at 100%**
 
 **Try it:**
 ```bash

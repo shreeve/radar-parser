@@ -63,7 +63,7 @@ _error(expected, msg) {
 
 // Token name lookup
 _tokenName(id) {
-  const names = {"2":"error","7":"TERMINATOR","12":"STATEMENT","27":"DEF","29":"CALL_START","31":"CALL_END","35":"YIELD","36":"INDENT","38":"OUTDENT","39":"FROM","40":"IDENTIFIER","42":"PROPERTY","44":"NUMBER","46":"STRING","47":"STRING_START","49":"STRING_END","52":"INTERPOLATION_START","53":"INTERPOLATION_END","55":"REGEX","56":"REGEX_START","58":"REGEX_END","60":",","62":"JS","63":"UNDEFINED","64":"NULL","65":"BOOL","66":"INFINITY","67":"NAN","70":"=","74":":","77":"[","78":"]","79":"@","80":"...","85":"SUPER","88":"DYNAMIC_IMPORT","89":".","90":"?.","91":"::","92":"?::","93":"INDEX_START","94":"INDEX_END","95":"INDEX_SOAK","96":"RETURN","97":"PARAM_START","98":"PARAM_END","100":"->","101":"=>","111":"ES6_OPTIONAL_INDEX","115":"NEW_TARGET","116":"IMPORT_META","117":"{","118":"FOR","120":"FOROF","121":"}","122":"WHEN","123":"OWN","126":"CLASS","127":"EXTENDS","128":"IMPORT","134":"AS","135":"DEFAULT","136":"IMPORT_ALL","137":"EXPORT","139":"EXPORT_ALL","142":"ES6_OPTIONAL_CALL","143":"FUNC_EXIST","145":"THIS","150":"..","159":"TRY","161":"FINALLY","162":"CATCH","163":"THROW","164":"(","165":")","167":"WHILE","168":"UNTIL","170":"LOOP","171":"FORIN","172":"BY","173":"FORFROM","174":"AWAIT","177":"SWITCH","179":"ELSE","182":"LEADING_WHEN","184":"IF","186":"UNLESS","187":"UNARY","188":"DO","189":"DO_IIFE","190":"UNARY_MATH","191":"-","192":"+","193":"--","194":"++","195":"?","196":"MATH","197":"**","198":"SHIFT","199":"COMPARE","200":"&","201":"^","202":"|","203":"&&","204":"||","205":"??","206":"!?","207":"RELATION","208":"SPACE?","209":"POST_IF","210":"POST_UNLESS","211":"COMPOUND_ASSIGN"};
+  const names = {"2":"error","7":"TERMINATOR","12":"STATEMENT","27":"DEF","29":"CALL_START","31":"CALL_END","35":"YIELD","36":"INDENT","38":"OUTDENT","39":"FROM","40":"IDENTIFIER","42":"PROPERTY","44":"NUMBER","46":"STRING","47":"STRING_START","49":"STRING_END","52":"INTERPOLATION_START","53":"INTERPOLATION_END","55":"REGEX","56":"REGEX_START","58":"REGEX_END","60":",","62":"JS","63":"UNDEFINED","64":"NULL","65":"BOOL","66":"INFINITY","67":"NAN","70":"=","74":":","77":"[","78":"]","79":"@","80":"...","85":"SUPER","87":"DYNAMIC_IMPORT","89":".","90":"?.","91":"::","92":"?::","93":"INDEX_START","94":"INDEX_END","95":"INDEX_SOAK","96":"RETURN","97":"PARAM_START","98":"PARAM_END","100":"->","101":"=>","111":"ES6_OPTIONAL_INDEX","115":"NEW_TARGET","116":"IMPORT_META","117":"{","118":"FOR","120":"FOROF","121":"}","122":"WHEN","123":"OWN","126":"CLASS","127":"EXTENDS","128":"IMPORT","134":"AS","135":"DEFAULT","136":"IMPORT_ALL","137":"EXPORT","139":"EXPORT_ALL","142":"ES6_OPTIONAL_CALL","143":"FUNC_EXIST","145":"THIS","150":"..","159":"TRY","161":"FINALLY","162":"CATCH","163":"THROW","164":"(","165":")","167":"WHILE","168":"UNTIL","170":"LOOP","171":"FORIN","172":"BY","173":"FORFROM","174":"AWAIT","177":"SWITCH","179":"ELSE","182":"LEADING_WHEN","184":"IF","186":"UNLESS","187":"UNARY","188":"DO","189":"DO_IIFE","190":"UNARY_MATH","191":"-","192":"+","193":"--","194":"++","195":"?","196":"MATH","197":"**","198":"SHIFT","199":"COMPARE","200":"&","201":"^","202":"|","203":"&&","204":"||","205":"??","206":"!?","207":"RELATION","208":"SPACE?","209":"POST_IF","210":"POST_UNLESS","211":"COMPOUND_ASSIGN"};
   return names[id] || id;
 }
 
@@ -901,9 +901,8 @@ switch (this.la.kind) {    case 'IDENTIFIER':
     case 'SUPER':
       {
       const $$1 = this._match('SUPER');
-      const $$2 = this.parseOptFuncExist();
-      const $$3 = this.parseArguments();
-      return ["super", ...$$3];
+      const $$2 = this.parseArguments();
+      return ["super", ...$$2];
       }
     case 'THIS':
       {
@@ -959,7 +958,7 @@ try {
     const params = this.parseParamList();
     this._match('PARAM_END');
     const arrow = this.parseFuncGlyph();
-    
+
     // Check if Block (INDENT) or inline Operation
     if (this.la.kind === 'INDENT') {
       const block = this.parseBlock();
@@ -4022,7 +4021,7 @@ while (true) {
       }
       case 'COMPOUND_ASSIGN': {
         const op = this._match('COMPOUND_ASSIGN');
-        const right = this.parseValue();
+        const right = this.parseExpression();
         const [$$1, $$2, $$3] = [left, op, right];
         left = [op, left, right];
         break;

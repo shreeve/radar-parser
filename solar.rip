@@ -1124,7 +1124,7 @@ class Generator
         if op is '='
           opCases.push "        const right = this.parseExpression();"  # Full expression for assignment
         else if op is 'COMPOUND_ASSIGN'
-          opCases.push "        const right = this.parseValue();"  # Value to avoid consuming FOR (comprehensions)
+          opCases.push "        const right = this.parseExpression();"  # Expression respects precedence and stops at FOR
         else if op is 'POST_IF' or op is 'POST_UNLESS'
           opCases.push "        const right = this.parseOperation();"  # Operation for conditions
         else
@@ -1147,7 +1147,7 @@ class Generator
         if op is '='
           opCases.push "        const right = this.parseExpression();"  # Full expression for assignment
         else if op is 'COMPOUND_ASSIGN'
-          opCases.push "        const right = this.parseValue();"  # Value to avoid consuming FOR (comprehensions)
+          opCases.push "        const right = this.parseExpression();"  # Expression respects precedence and stops at FOR
         else if op is 'POST_IF' or op is 'POST_UNLESS'
           opCases.push "        const right = this.parseOperation();"  # Operation for conditions
         else if op is '&&' or op is '||'
