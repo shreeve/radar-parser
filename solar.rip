@@ -1059,27 +1059,35 @@ class Generator
 
     baseCases = []
     for [token, rule] from tokenToRule
-      baseCases.push "    case '#{token}':"
       parseCode = @_generateParseCode(rule)
-      baseCases.push "      {"
       # Special handling for AWAIT to support await new X(), await typeof x, etc.
       if token is 'AWAIT' and rule.symbols.length is 2 and rule.symbols[0] is 'AWAIT' and rule.symbols[1] is 'Value'
-        baseCases.push "      const $$1 = this._match('AWAIT');"
-        baseCases.push "      // Check if next token is another unary operator"
-        baseCases.push "      let $$2;"
-        baseCases.push "      if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+') {"
-        baseCases.push "        const unaryOp = this._match(this.la.kind);"
-        baseCases.push "        const unaryArg = this.parseValue();"
-        baseCases.push "        $$2 = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];"
-        baseCases.push "      } else {"
-        baseCases.push "        $$2 = this.parseValue();"
-        baseCases.push "      }"
         action = @_getRDAction(rule, ["$$1", "$$2"])
-        baseCases.push "      left = #{action.replace('return ', '').replace(/;$/, '')};"
+        baseCases.push """
+        case '#{token}':
+          {
+          const $$1 = this._match('AWAIT');
+          // Check if next token is another unary operator
+          let $$2;
+          if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+') {
+            const unaryOp = this._match(this.la.kind);
+            const unaryArg = this.parseValue();
+            $$2 = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
+          } else {
+            $$2 = this.parseValue();
+          }
+          left = #{action.replace('return ', '').replace(/;$/, '')};
+          break;
+          }
+        """
       else
-        baseCases.push "      #{parseCode.replace('return ', 'left = ')};"
-      baseCases.push "      break;"
-      baseCases.push "      }"
+        baseCases.push """
+        case '#{token}':
+          {
+          #{parseCode.replace('return ', 'left = ')};
+          break;
+          }
+        """
 
     # Check for postfix operators too (SimpleAssignable ++/--, Value ?)
     postfixRules = []
@@ -1316,13 +1324,14 @@ class Generator
     for rule in baseRules
       firsts = @_computeFirst(rule.symbols)
       for token from firsts when token isnt ''
-        baseCases.push "    case '#{token}':"
-
-      parseCode = @_generateParseCode(rule)
-      baseCases.push "      {"
-      baseCases.push "      #{parseCode.replace('return ', 'base = ')};"
-      baseCases.push "      break;"
-      baseCases.push "      }"
+        parseCode = @_generateParseCode(rule)
+        baseCases.push """
+        case '#{token}':
+          {
+          #{parseCode.replace('return ', 'base = ')};
+          break;
+          }
+        """
 
     # Generate accessor cases
     accessorCases = []
@@ -1339,95 +1348,107 @@ class Generator
 
       switch accessor
         when '.'
-          accessorCases.push "      case '.':"
-          accessorCases.push "        this._match('.');"
-          accessorCases.push "        const prop = this.parseProperty();"
-          accessorCases.push "        base = ['.', base, prop];"
-          accessorCases.push "        break;"
+          accessorCases.push '''
+          case '.':
+            this._match('.');
+            const prop = this.parseProperty();
+            base = ['.', base, prop];
+            break;
+          '''
 
         when '?.'
-          accessorCases.push "      case '?.':"
-          accessorCases.push "        this._match('?.');"
-          accessorCases.push "        const optProp = this.parseProperty();"
-          accessorCases.push "        base = ['?.', base, optProp];"
-          accessorCases.push "        break;"
+          accessorCases.push '''
+          case '?.':
+            this._match('?.');
+            const optProp = this.parseProperty();
+            base = ['?.', base, optProp];
+            break;
+          '''
 
         when '::'
-          accessorCases.push "      case '::':"
-          accessorCases.push "        this._match('::');"
-          accessorCases.push "        if (this.la.kind === 'PROPERTY') {"
-          accessorCases.push "          const protoProp = this.parseProperty();"
-          accessorCases.push "          base = ['::', base, protoProp];"
-          accessorCases.push "        } else {"
-          accessorCases.push "          base = ['::', base, 'prototype'];"
-          accessorCases.push "        }"
-          accessorCases.push "        break;"
+          accessorCases.push '''
+          case '::':
+            this._match('::');
+            if (this.la.kind === 'PROPERTY') {
+              const protoProp = this.parseProperty();
+              base = ['::', base, protoProp];
+            } else {
+              base = ['::', base, 'prototype'];
+            }
+            break;
+          '''
 
         when '?::'
-          accessorCases.push "      case '?::':"
-          accessorCases.push "        this._match('?::');"
-          accessorCases.push "        if (this.la.kind === 'PROPERTY') {"
-          accessorCases.push "          const optProtoProp = this.parseProperty();"
-          accessorCases.push "          base = ['?::', base, optProtoProp];"
-          accessorCases.push "        } else {"
-          accessorCases.push "          base = ['?::', base, 'prototype'];"
-          accessorCases.push "        }"
-          accessorCases.push "        break;"
+          accessorCases.push '''
+          case '?::':
+            this._match('?::');
+            if (this.la.kind === 'PROPERTY') {
+              const optProtoProp = this.parseProperty();
+              base = ['?::', base, optProtoProp];
+            } else {
+              base = ['?::', base, 'prototype'];
+            }
+            break;
+          '''
 
         when 'INDEX_START'
-          accessorCases.push "      case 'INDEX_START':"
-          accessorCases.push "        this._match('INDEX_START');"
-          accessorCases.push "        "
-          accessorCases.push "        // Check for regex indexing: value[/pattern/] or value[/pattern/, n]"
-          accessorCases.push "        if (this.la.kind === 'REGEX' || this.la.kind === 'REGEX_START') {"
-          accessorCases.push "          const regex = this.parseRegex();"
-          accessorCases.push "          "
-          accessorCases.push "          // Check for capture group number: [/pattern/, 1]"
-          accessorCases.push "          if (this.la.kind === ',') {"
-          accessorCases.push "            this._match(',');"
-          accessorCases.push "            const captureNum = this.parseExpression();"
-          accessorCases.push "            this._match('INDEX_END');"
-          accessorCases.push "            // Result: [\"regex-index\", base, regex, captureNum]"
-          accessorCases.push "            base = [\"regex-index\", base, regex, captureNum];"
-          accessorCases.push "          } else {"
-          accessorCases.push "            // No capture number: [/pattern/]"
-          accessorCases.push "            this._match('INDEX_END');"
-          accessorCases.push "            // Result: [\"regex-index\", base, regex, null]"
-          accessorCases.push "            base = [\"regex-index\", base, regex, null];"
-          accessorCases.push "          }"
-          accessorCases.push "        } else if (this.la.kind === '..' || this.la.kind === '...') {"
-          accessorCases.push "          // Slice without start: [..3] or [...3]"
-          accessorCases.push "          const slice = this.parseSlice();"
-          accessorCases.push "          this._match('INDEX_END');"
-          accessorCases.push "          base = ['[]', base, slice];"
-          accessorCases.push "        } else {"
-          accessorCases.push "          const index = this.parseExpression();"
-          accessorCases.push "          // Check if it's a slice: [1..3] or [1...3]"
-          accessorCases.push "          if (this.la.kind === '..' || this.la.kind === '...') {"
-          accessorCases.push "            // It's a slice! Parse as Slice"
-          accessorCases.push "            const dots = this.parseRangeDots();"
-          accessorCases.push "            let endExpr = null;"
-          accessorCases.push "            if (this.la.kind !== 'INDEX_END') {"
-          accessorCases.push "              endExpr = this.parseExpression();"
-          accessorCases.push "            }"
-          accessorCases.push "            this._match('INDEX_END');"
-          accessorCases.push "            base = ['[]', base, [dots, index, endExpr]];"
-          accessorCases.push "          } else {"
-          accessorCases.push "            // Simple index"
-          accessorCases.push "            this._match('INDEX_END');"
-          accessorCases.push "            base = ['[]', base, index];"
-          accessorCases.push "          }"
-          accessorCases.push "        }"
-          accessorCases.push "        break;"
+          accessorCases.push '''
+          case 'INDEX_START':
+            this._match('INDEX_START');
+            
+            // Check for regex indexing: value[/pattern/] or value[/pattern/, n]
+            if (this.la.kind === 'REGEX' || this.la.kind === 'REGEX_START') {
+              const regex = this.parseRegex();
+              
+              // Check for capture group number: [/pattern/, 1]
+              if (this.la.kind === ',') {
+                this._match(',');
+                const captureNum = this.parseExpression();
+                this._match('INDEX_END');
+                // Result: ["regex-index", base, regex, captureNum]
+                base = ["regex-index", base, regex, captureNum];
+              } else {
+                // No capture number: [/pattern/]
+                this._match('INDEX_END');
+                // Result: ["regex-index", base, regex, null]
+                base = ["regex-index", base, regex, null];
+              }
+            } else if (this.la.kind === '..' || this.la.kind === '...') {
+              // Slice without start: [..3] or [...3]
+              const slice = this.parseSlice();
+              this._match('INDEX_END');
+              base = ['[]', base, slice];
+            } else {
+              const index = this.parseExpression();
+              // Check if it's a slice: [1..3] or [1...3]
+              if (this.la.kind === '..' || this.la.kind === '...') {
+                // It's a slice! Parse as Slice
+                const dots = this.parseRangeDots();
+                let endExpr = null;
+                if (this.la.kind !== 'INDEX_END') {
+                  endExpr = this.parseExpression();
+                }
+                this._match('INDEX_END');
+                base = ['[]', base, [dots, index, endExpr]];
+              } else {
+                // Simple index
+                this._match('INDEX_END');
+                base = ['[]', base, index];
+              }
+            }
+            break;
+          '''
 
         when 'INDEX_SOAK'
-          accessorCases.push "      case 'INDEX_SOAK':"
-          accessorCases.push "        this._match('INDEX_SOAK');"
-          accessorCases.push "        this._match('INDEX_START');"
-          accessorCases.push "        const soakIndex = this.parseExpression();"
-          accessorCases.push "        this._match('INDEX_END');"
-          accessorCases.push "        base = ['?[]', base, soakIndex];"
-          accessorCases.push "        break;"
+          accessorCases.push '''
+          case 'INDEX_SOAK':
+            this._match('INDEX_SOAK');
+            this._match('INDEX_START');
+            const soakIndex = this.parseExpression();
+            this._match('INDEX_END');
+            base = ['?[]', base, soakIndex];
+            break;
+          '''
 
     allFirsts = new Set
     for rule in baseRules

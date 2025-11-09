@@ -895,102 +895,102 @@ parseSplat() {const $$1 = this._match('...');
     let base;
 
     // Parse base case
-    switch (this.la.kind) {    case 'IDENTIFIER':
-      {
-      const $$1 = this._match('IDENTIFIER');
+    switch (this.la.kind) {case 'IDENTIFIER':
+  {
+  const $$1 = this._match('IDENTIFIER');
       base = $$1;;
-      break;
-      }
-    case '@':
-      {
-      const $$1 = this.parseThisProperty();
+  break;
+  }
+case '@':
+  {
+  const $$1 = this.parseThisProperty();
       base = $$1;;
-      break;
-      }default:
+  break;
+  }default:
   this._error([], "Invalid SimpleAssignable");
     }
 
     // Iterate through accessors
     while (true) {
-      switch (this.la.kind) {      case '.':
-        this._match('.');
-        const prop = this.parseProperty();
-        base = ['.', base, prop];
-        break;
-      case '?.':
-        this._match('?.');
-        const optProp = this.parseProperty();
-        base = ['?.', base, optProp];
-        break;
-      case '::':
-        this._match('::');
-        if (this.la.kind === 'PROPERTY') {
-          const protoProp = this.parseProperty();
-          base = ['::', base, protoProp];
-        } else {
-          base = ['::', base, 'prototype'];
-        }
-        break;
-      case '?::':
-        this._match('?::');
-        if (this.la.kind === 'PROPERTY') {
-          const optProtoProp = this.parseProperty();
-          base = ['?::', base, optProtoProp];
-        } else {
-          base = ['?::', base, 'prototype'];
-        }
-        break;
-      case 'INDEX_START':
-        this._match('INDEX_START');
-        
-        // Check for regex indexing: value[/pattern/] or value[/pattern/, n]
-        if (this.la.kind === 'REGEX' || this.la.kind === 'REGEX_START') {
-          const regex = this.parseRegex();
-          
-          // Check for capture group number: [/pattern/, 1]
-          if (this.la.kind === ',') {
-            this._match(',');
-            const captureNum = this.parseExpression();
-            this._match('INDEX_END');
-            // Result: ["regex-index", base, regex, captureNum]
-            base = ["regex-index", base, regex, captureNum];
-          } else {
-            // No capture number: [/pattern/]
-            this._match('INDEX_END');
-            // Result: ["regex-index", base, regex, null]
-            base = ["regex-index", base, regex, null];
-          }
-        } else if (this.la.kind === '..' || this.la.kind === '...') {
-          // Slice without start: [..3] or [...3]
-          const slice = this.parseSlice();
-          this._match('INDEX_END');
-          base = ['[]', base, slice];
-        } else {
-          const index = this.parseExpression();
-          // Check if it's a slice: [1..3] or [1...3]
-          if (this.la.kind === '..' || this.la.kind === '...') {
-            // It's a slice! Parse as Slice
-            const dots = this.parseRangeDots();
-            let endExpr = null;
-            if (this.la.kind !== 'INDEX_END') {
-              endExpr = this.parseExpression();
-            }
-            this._match('INDEX_END');
-            base = ['[]', base, [dots, index, endExpr]];
-          } else {
-            // Simple index
-            this._match('INDEX_END');
-            base = ['[]', base, index];
-          }
-        }
-        break;
-      case 'INDEX_SOAK':
-        this._match('INDEX_SOAK');
-        this._match('INDEX_START');
-        const soakIndex = this.parseExpression();
-        this._match('INDEX_END');
-        base = ['?[]', base, soakIndex];
-        break;        default:
+      switch (this.la.kind) {case '.':
+  this._match('.');
+  const prop = this.parseProperty();
+  base = ['.', base, prop];
+  break;
+case '?.':
+  this._match('?.');
+  const optProp = this.parseProperty();
+  base = ['?.', base, optProp];
+  break;
+case '::':
+  this._match('::');
+  if (this.la.kind === 'PROPERTY') {
+    const protoProp = this.parseProperty();
+    base = ['::', base, protoProp];
+  } else {
+    base = ['::', base, 'prototype'];
+  }
+  break;
+case '?::':
+  this._match('?::');
+  if (this.la.kind === 'PROPERTY') {
+    const optProtoProp = this.parseProperty();
+    base = ['?::', base, optProtoProp];
+  } else {
+    base = ['?::', base, 'prototype'];
+  }
+  break;
+case 'INDEX_START':
+  this._match('INDEX_START');
+  
+  // Check for regex indexing: value[/pattern/] or value[/pattern/, n]
+  if (this.la.kind === 'REGEX' || this.la.kind === 'REGEX_START') {
+    const regex = this.parseRegex();
+    
+    // Check for capture group number: [/pattern/, 1]
+    if (this.la.kind === ',') {
+      this._match(',');
+      const captureNum = this.parseExpression();
+      this._match('INDEX_END');
+      // Result: ["regex-index", base, regex, captureNum]
+      base = ["regex-index", base, regex, captureNum];
+    } else {
+      // No capture number: [/pattern/]
+      this._match('INDEX_END');
+      // Result: ["regex-index", base, regex, null]
+      base = ["regex-index", base, regex, null];
+    }
+  } else if (this.la.kind === '..' || this.la.kind === '...') {
+    // Slice without start: [..3] or [...3]
+    const slice = this.parseSlice();
+    this._match('INDEX_END');
+    base = ['[]', base, slice];
+  } else {
+    const index = this.parseExpression();
+    // Check if it's a slice: [1..3] or [1...3]
+    if (this.la.kind === '..' || this.la.kind === '...') {
+      // It's a slice! Parse as Slice
+      const dots = this.parseRangeDots();
+      let endExpr = null;
+      if (this.la.kind !== 'INDEX_END') {
+        endExpr = this.parseExpression();
+      }
+      this._match('INDEX_END');
+      base = ['[]', base, [dots, index, endExpr]];
+    } else {
+      // Simple index
+      this._match('INDEX_END');
+      base = ['[]', base, index];
+    }
+  }
+  break;
+case 'INDEX_SOAK':
+  this._match('INDEX_SOAK');
+  this._match('INDEX_START');
+  const soakIndex = this.parseExpression();
+  this._match('INDEX_END');
+  base = ['?[]', base, soakIndex];
+  break;        default:
           return base;
       }
     }
@@ -2841,220 +2841,220 @@ parseOperation() {
     let left;
 
     // Parse base expression
-    switch (this.la.kind) {    case 'IDENTIFIER':
-      {
-      const $$1 = this.parseValue();
+    switch (this.la.kind) {case 'IDENTIFIER':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case '@':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case '@':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case 'JS':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case 'JS':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case 'UNDEFINED':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case 'UNDEFINED':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case 'NULL':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case 'NULL':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case 'BOOL':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case 'BOOL':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case 'INFINITY':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case 'INFINITY':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case 'NAN':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case 'NAN':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case '(':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case '(':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case '[':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case '[':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case 'SUPER':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case 'SUPER':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case 'DYNAMIC_IMPORT':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case 'DYNAMIC_IMPORT':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case 'DO_IIFE':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case 'DO_IIFE':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case 'THIS':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case 'THIS':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case 'NEW_TARGET':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case 'NEW_TARGET':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case 'IMPORT_META':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case 'IMPORT_META':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case 'PARAM_START':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case 'PARAM_START':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case '->':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case '->':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case '=>':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case '=>':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case '{':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case '{':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case 'NUMBER':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case 'NUMBER':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case 'STRING':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case 'STRING':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case 'STRING_START':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case 'STRING_START':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case 'REGEX':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case 'REGEX':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case 'REGEX_START':
-      {
-      const $$1 = this.parseValue();
+  break;
+  }
+case 'REGEX_START':
+  {
+  const $$1 = this.parseValue();
       left = $$1;;
-      break;
-      }
-    case 'UNARY':
-      {
-      const $$1 = this._match('UNARY');
+  break;
+  }
+case 'UNARY':
+  {
+  const $$1 = this._match('UNARY');
       const $$2 = this.parseValue();
       left = [$$1, $$2];;
-      break;
-      }
-    case 'DO':
-      {
-      const $$1 = this._match('DO');
+  break;
+  }
+case 'DO':
+  {
+  const $$1 = this._match('DO');
       const $$2 = this.parseValue();
       left = ["do-iife", $$2];;
-      break;
-      }
-    case 'UNARY_MATH':
-      {
-      const $$1 = this._match('UNARY_MATH');
+  break;
+  }
+case 'UNARY_MATH':
+  {
+  const $$1 = this._match('UNARY_MATH');
       const $$2 = this.parseValue();
       left = [$$1, $$2];;
-      break;
-      }
-    case '-':
-      {
-      const $$1 = this._match('-');
+  break;
+  }
+case '-':
+  {
+  const $$1 = this._match('-');
       const $$2 = this.parseValue();
       left = ["-", $$2];;
-      break;
-      }
-    case '+':
-      {
-      const $$1 = this._match('+');
+  break;
+  }
+case '+':
+  {
+  const $$1 = this._match('+');
       const $$2 = this.parseValue();
       left = ["+", $$2];;
-      break;
-      }
-    case 'AWAIT':
-      {
-      const $$1 = this._match('AWAIT');
-      // Check if next token is another unary operator
-      let $$2;
-      if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+') {
-        const unaryOp = this._match(this.la.kind);
-        const unaryArg = this.parseValue();
-        $$2 = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
-      } else {
-        $$2 = this.parseValue();
-      }
-      left = ["await", $$2];
-      break;
-      }
-    case '--':
-      {
-      const $$1 = this._match('--');
+  break;
+  }
+case 'AWAIT':
+  {
+  const $$1 = this._match('AWAIT');
+  // Check if next token is another unary operator
+  let $$2;
+  if (this.la.kind === 'UNARY' || this.la.kind === 'UNARY_MATH' || this.la.kind === '-' || this.la.kind === '+') {
+    const unaryOp = this._match(this.la.kind);
+    const unaryArg = this.parseValue();
+    $$2 = [unaryOp === '-' || unaryOp === '+' ? unaryOp : unaryOp, unaryArg];
+  } else {
+    $$2 = this.parseValue();
+  }
+  left = ["await", $$2];
+  break;
+  }
+case '--':
+  {
+  const $$1 = this._match('--');
       const $$2 = this.parseSimpleAssignable();
       left = ["--", $$2, false];;
-      break;
-      }
-    case '++':
-      {
-      const $$1 = this._match('++');
+  break;
+  }
+case '++':
+  {
+  const $$1 = this._match('++');
       const $$2 = this.parseSimpleAssignable();
       left = ["++", $$2, false];;
-      break;
-      }default:
+  break;
+  }default:
   this._error([], "Invalid Operation");
     }
 
