@@ -123,7 +123,7 @@ parser.trackDepth = false;  // DEFAULT
 
 **Impact:** ~10-15% faster (try/finally eliminated from hot path)
 
-**Change in solar.rip:** 
+**Change in solar.rip:**
 - Constructor template (line 740)
 - _wrapWithDepthTracking() method (lines 3476-3511)
 
@@ -163,7 +163,7 @@ const id = this._match('IDENTIFIER');
 
 **Impact:** ~5-8% faster (eliminate ~20 function calls)
 
-**Change in solar.rip:** 
+**Change in solar.rip:**
 - Detect trivial single-_match functions
 - At call sites, inline them instead of generating parseXXX() calls
 
@@ -455,7 +455,7 @@ B. Depth tracking wrapper:
 ```coffeescript
 _wrapWithDepthTracking: (typeName, funcBody) ->
   # ... existing code ...
-  
+
   depthCheck = '''
 
   // Recursion depth tracking (optional for speed)
@@ -486,7 +486,7 @@ _generateParseCode: (rule) ->
   parts = []
   for symbol, i in rule.symbols when symbol isnt ''
     varName = "$$#{i + 1}"
-    
+
     if @types[symbol]
       # Check if it's a trivial function (single _match wrapper)
       symbolRules = @types[symbol].rules
@@ -551,7 +551,7 @@ D. Tests default to fast mode (trackDepth = false)
 
 **Requires:**
 1. Generate TOKENS constant map
-2. Add kindId to token objects  
+2. Add kindId to token objects
 3. Update all switches to use kindId
 
 **Expected:** Additional 2-5% speedup
@@ -702,4 +702,3 @@ done
 But with these optimizations, you could be **5x faster than mainline Rip** and one of the fastest parsers available for any language.
 
 **The clean architecture + performance = Perfect combo!** 🚀
-

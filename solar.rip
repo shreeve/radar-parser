@@ -743,6 +743,7 @@ class Generator
         this.yy = {};          // Shared state
         this.depth = 0;        // Recursion depth tracking
         this.maxDepth = 1000;  // Maximum recursion depth (prevent stack overflow)
+        this.trackDepth = false; // Depth tracking (off by default for speed)
       }
 
       // Initialize parser with input
@@ -774,11 +775,9 @@ class Generator
         if (this.la.kind !== kind) {
           this._error([kind], `Expected ${kind}`);
         }
-        const tok = this.la;
+        const value = this.la.value;  // Cache value before overwriting la
         this.la = this._nextToken();
-        // Return the SAVED token's value, not current lexer value!
-        // tok.value is the matched token's value BEFORE advancing
-        return tok.value;
+        return value;
       }
 
       // Check if current token is in set
@@ -1657,8 +1656,19 @@ class Generator
       varName = "$$#{i + 1}"
 
       if @types[symbol]
-        # Nonterminal - call parse function
-        parts.push "const #{varName} = this.parse#{symbol}();"
+        # Nonterminal - check if it's trivial (single rule wrapping single terminal)
+        symbolType = @types[symbol]
+        isTrivial = symbolType.rules.length is 1 and 
+                    symbolType.rules[0].symbols.length is 1 and
+                    not @types[symbolType.rules[0].symbols[0]]
+        
+        if isTrivial
+          # Inline trivial function - call _match directly
+          terminal = symbolType.rules[0].symbols[0]
+          parts.push "const #{varName} = this._match('#{terminal}');"
+        else
+          # Complex nonterminal - call parse function
+          parts.push "const #{varName} = this.parse#{symbol}();"
       else
         # Terminal - match token
         parts.push "const #{varName} = this._match('#{symbol}');"
@@ -3494,17 +3504,19 @@ class Generator
     # Wrap body with depth tracking
     depthCheck = '''
 
-    // Recursion depth tracking
-    this.depth++;
-    if (this.depth > this.maxDepth) {
-      this.depth--;
-      this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parse''' + typeName + '''(). Possible grammar cycle.");
+    // Recursion depth tracking (optional for performance)
+    if (this.trackDepth) {
+      this.depth++;
+      if (this.depth > this.maxDepth) {
+        this.depth--;
+        this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parse''' + typeName + '''(). Possible grammar cycle.");
+      }
     }
     try {'''
 
     finallyBlock = '''
     } finally {
-      this.depth--;
+      if (this.trackDepth) this.depth--;
     }
   }'''
 

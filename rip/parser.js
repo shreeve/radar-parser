@@ -7,6 +7,7 @@ class Parser {
     this.yy = {};          // Shared state
     this.depth = 0;        // Recursion depth tracking
     this.maxDepth = 1000;  // Maximum recursion depth (prevent stack overflow)
+    this.trackDepth = false; // Depth tracking (off by default for speed)
   }
 
   // Initialize parser with input
@@ -38,11 +39,9 @@ _match(kind) {
   if (this.la.kind !== kind) {
     this._error([kind], `Expected ${kind}`);
   }
-  const tok = this.la;
+  const value = this.la.value;  // Cache value before overwriting la
   this.la = this._nextToken();
-  // Return the SAVED token's value, not current lexer value!
-  // tok.value is the matched token's value BEFORE advancing
-  return tok.value;
+  return value;
 }
 
 // Check if current token is in set
@@ -88,18 +87,20 @@ _createLexer() {
 }
 
 parseBody() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseBody(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseBody(). Possible grammar cycle.");
+  }
 }
 try {
 // List pattern: Body → Line BodyTail
     const $$1 = this.parseLine();
 const $$2 = this.parseBodyTail();
     return [$$1, ...$$2];  } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
@@ -125,11 +126,13 @@ const $$2 = this.parseBodyTail();
 
 
 parseLine() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseLine(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseLine(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'IF':
@@ -233,16 +236,18 @@ switch (this.la.kind) {    case 'IF':
   this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'THROW', 'IDENTIFIER', '@', '[', '{', 'NUMBER', 'JS', 'REGEX', 'REGEX_START', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', 'STRING', 'STRING_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', 'RETURN', 'STATEMENT', 'IMPORT', 'EXPORT'], "Invalid Line");
   }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseStatement() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseStatement(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseStatement(). Possible grammar cycle.");
+  }
 }
 try {
   switch (this.la.kind) {
@@ -287,7 +292,7 @@ try {
       this._error(['RETURN', 'STATEMENT', 'IMPORT', 'EXPORT'], "Invalid Statement");
   }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
@@ -324,16 +329,18 @@ parseExpression() {
 }
 
 parsePrimaryExpression() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parsePrimaryExpression(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parsePrimaryExpression(). Possible grammar cycle.");
+  }
 }
 try {
     const $$1 = this.parseOperation();
       return $$1;  } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
@@ -358,11 +365,13 @@ parseDef() {
 }
 
 parseExpressionLine() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseExpressionLine(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseExpressionLine(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'PARAM_START':
@@ -396,7 +405,7 @@ switch (this.la.kind) {    case 'PARAM_START':
       return $$1;
       }default:      this._error(['PARAM_START', '->', '=>', 'UNARY', 'DO', 'DO_IIFE'], "Invalid ExpressionLine");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
@@ -447,39 +456,45 @@ parseBlock() {
 }
 
 parseIdentifier() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseIdentifier(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseIdentifier(). Possible grammar cycle.");
+  }
 }
 try {
     const $$1 = this._match('IDENTIFIER');
       return $$1;  } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseProperty() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseProperty(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseProperty(). Possible grammar cycle.");
+  }
 }
 try {
     const $$1 = this._match('PROPERTY');
       return $$1;  } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseAlphaNumeric() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseAlphaNumeric(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseAlphaNumeric(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'NUMBER':
@@ -498,16 +513,18 @@ switch (this.la.kind) {    case 'NUMBER':
       return $$1;
       }default:      this._error(['NUMBER', 'STRING', 'STRING_START'], "Invalid AlphaNumeric");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseString() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseString(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseString(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'STRING':
@@ -523,23 +540,25 @@ switch (this.la.kind) {    case 'STRING':
       return ["str", ...$$2];
       }default:      this._error(['STRING', 'STRING_START'], "Invalid String");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseInterpolations() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseInterpolations(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseInterpolations(). Possible grammar cycle.");
+  }
 }
 try {
 // List pattern: Interpolations → InterpolationChunk InterpolationsTail
     const $$1 = this.parseInterpolationChunk();
 const $$2 = this.parseInterpolationsTail();
     return [$$1, ...$$2];  } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
@@ -600,11 +619,13 @@ parseInterpolationChunk() {
 }
 
 parseRegex() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseRegex(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseRegex(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'REGEX':
@@ -620,16 +641,18 @@ switch (this.la.kind) {    case 'REGEX':
       return ["regex", $$2];
       }default:      this._error(['REGEX', 'REGEX_START'], "Invalid Regex");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseRegexWithIndex() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseRegexWithIndex(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseRegexWithIndex(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'REGEX':
@@ -643,16 +666,18 @@ switch (this.la.kind) {    case 'REGEX':
       return ["regex-index", $$1, null];
       }default:      this._error(['REGEX', 'REGEX_START'], "Invalid RegexWithIndex");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseLiteral() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseLiteral(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseLiteral(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'NUMBER':
@@ -711,7 +736,7 @@ switch (this.la.kind) {    case 'NUMBER':
       return $$1;
       }default:      this._error(['NUMBER', 'STRING', 'STRING_START', 'JS', 'REGEX', 'REGEX_START', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN'], "Invalid Literal");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
@@ -792,11 +817,13 @@ parseAssignObj() {
 }
 
 parseSimpleObjAssignable() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseSimpleObjAssignable(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseSimpleObjAssignable(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'IDENTIFIER':
@@ -808,16 +835,18 @@ switch (this.la.kind) {    case 'IDENTIFIER':
   this._error(['IDENTIFIER', 'PROPERTY', '@'], "Invalid SimpleObjAssignable");
   }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseObjAssignable() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseObjAssignable(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseObjAssignable(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'IDENTIFIER':
@@ -842,16 +871,18 @@ switch (this.la.kind) {    case 'IDENTIFIER':
   this._error(['IDENTIFIER', 'PROPERTY', '@', '[', 'NUMBER', 'STRING', 'STRING_START'], "Invalid ObjAssignable");
   }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseObjRestValue() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseObjRestValue(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseObjRestValue(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case '...':
@@ -861,16 +892,18 @@ switch (this.la.kind) {    case '...':
       return ["...", $$2];
       }default:      this._error(['...'], "Invalid ObjRestValue");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseObjSpreadExpr() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseObjSpreadExpr(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseObjSpreadExpr(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'IDENTIFIER':
@@ -916,7 +949,7 @@ switch (this.la.kind) {    case 'IDENTIFIER':
       return ["import", ...$$2];
       }default:      this._error(['IDENTIFIER', 'PROPERTY', '@', '{', '(', 'SUPER', 'THIS', 'DYNAMIC_IMPORT'], "Invalid ObjSpreadExpr");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }// NOTE: Simplified - omitted 11 accessor patterns
 
@@ -945,11 +978,13 @@ parseReturn() {
 }
 
 parseCode() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseCode(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseCode(). Possible grammar cycle.");
+  }
 }
 try {
   if (this.la.kind === 'PARAM_START') {
@@ -975,16 +1010,18 @@ try {
     return [arrow, [], block];
   }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseCodeLine() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseCodeLine(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseCodeLine(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'PARAM_START':
@@ -1009,16 +1046,18 @@ switch (this.la.kind) {    case 'PARAM_START':
       return [$$1, [], $$2];
       }default:      this._error(['PARAM_START', '->', '=>'], "Invalid CodeLine");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseFuncGlyph() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseFuncGlyph(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseFuncGlyph(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case '->':
@@ -1032,16 +1071,18 @@ switch (this.la.kind) {    case '->':
       return $$1;
       }default:      this._error(['->', '=>'], "Invalid FuncGlyph");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseOptComma() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseOptComma(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseOptComma(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case ',':
@@ -1051,16 +1092,18 @@ switch (this.la.kind) {    case ',':
       }default:      // ε production
       return null;  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseParamList() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseParamList(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseParamList(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'IDENTIFIER':
@@ -1103,7 +1146,7 @@ switch (this.la.kind) {    case 'IDENTIFIER':
       }default:      // ε production
       return [];  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
@@ -1163,11 +1206,13 @@ parseParam() {
 }
 
 parseParamVar() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseParamVar(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseParamVar(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'IDENTIFIER':
@@ -1181,31 +1226,35 @@ switch (this.la.kind) {    case 'IDENTIFIER':
   this._error(['IDENTIFIER', '@', '[', '{'], "Invalid ParamVar");
   }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseSplat() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseSplat(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseSplat(). Possible grammar cycle.");
+  }
 }
 try {
     const $$1 = this._match('...');
       const $$2 = this.parseExpression();
       return ["...", $$2];  } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseSimpleAssignable() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseSimpleAssignable(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseSimpleAssignable(). Possible grammar cycle.");
+  }
 }
 try {
   // Accessor chain with full iterative loop
@@ -1214,7 +1263,7 @@ try {
   // Parse base case
   switch (this.la.kind) {    case 'IDENTIFIER':
       {
-      const $$1 = this.parseIdentifier();
+      const $$1 = this._match('IDENTIFIER');
       base = $$1;;
       break;
       }
@@ -1312,7 +1361,7 @@ while (true) {
     }
   }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
@@ -1539,49 +1588,53 @@ parseValue() {
 }
 
 parseSuper() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseSuper(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseSuper(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'SUPER':
       {
       const $$1 = this._match('SUPER');
       const $$2 = this._match('.');
-      const $$3 = this.parseProperty();
+      const $$3 = this._match('PROPERTY');
       return [".", "super", $$3];
       }default:      this._error(['SUPER'], "Invalid Super");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseMetaProperty() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseMetaProperty(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseMetaProperty(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'NEW_TARGET':
       {
       const $$1 = this._match('NEW_TARGET');
       const $$2 = this._match('.');
-      const $$3 = this.parseProperty();
+      const $$3 = this._match('PROPERTY');
       return [".", "new", $$3];
       }
     case 'IMPORT_META':
       {
       const $$1 = this._match('IMPORT_META');
       const $$2 = this._match('.');
-      const $$3 = this.parseProperty();
+      const $$3 = this._match('PROPERTY');
       return [".", "import", $$3];
       }default:      this._error(['NEW_TARGET', 'IMPORT_META'], "Invalid MetaProperty");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
@@ -1793,11 +1846,13 @@ parseImport() {
 }
 
 parseImportSpecifierList() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseImportSpecifierList(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseImportSpecifierList(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'IDENTIFIER':
@@ -1821,7 +1876,7 @@ switch (this.la.kind) {    case 'IDENTIFIER':
       return $$2;
       }default:      this._error(['IDENTIFIER', 'DEFAULT', 'INDENT'], "Invalid ImportSpecifierList");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
@@ -1854,11 +1909,13 @@ switch (this.la.kind) {    case ',':
 }
 
 parseImportSpecifier() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseImportSpecifier(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseImportSpecifier(). Possible grammar cycle.");
+  }
 }
 try {
   if (this.la.kind === 'IDENTIFIER') {
@@ -1889,46 +1946,52 @@ try {
 
   this._error(['IDENTIFIER', 'DEFAULT'], "Invalid ImportSpecifier");
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseImportDefaultSpecifier() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseImportDefaultSpecifier(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseImportDefaultSpecifier(). Possible grammar cycle.");
+  }
 }
 try {
-    const $$1 = this.parseIdentifier();
+    const $$1 = this._match('IDENTIFIER');
       return $$1;  } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseImportNamespaceSpecifier() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseImportNamespaceSpecifier(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseImportNamespaceSpecifier(). Possible grammar cycle.");
+  }
 }
 try {
     const $$1 = this._match('IMPORT_ALL');
       const $$2 = this._match('AS');
-      const $$3 = this.parseIdentifier();
+      const $$3 = this._match('IDENTIFIER');
       return ["*", $$3];  } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseExport() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseExport(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseExport(). Possible grammar cycle.");
+  }
 }
 try {
   this._match('EXPORT');
@@ -2023,16 +2086,18 @@ try {
 
   this._error(['{', 'CLASS', 'DEF', 'DEFAULT', 'EXPORT_ALL', 'IDENTIFIER'], "Invalid Export");
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseExportSpecifierList() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseExportSpecifierList(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseExportSpecifierList(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'IDENTIFIER':
@@ -2056,7 +2121,7 @@ switch (this.la.kind) {    case 'IDENTIFIER':
       return $$2;
       }default:      this._error(['IDENTIFIER', 'DEFAULT', 'INDENT'], "Invalid ExportSpecifierList");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
@@ -2089,11 +2154,13 @@ switch (this.la.kind) {    case ',':
 }
 
 parseExportSpecifier() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseExportSpecifier(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseExportSpecifier(). Possible grammar cycle.");
+  }
 }
 try {
   if (this.la.kind === 'IDENTIFIER') {
@@ -2132,16 +2199,18 @@ try {
 
   this._error(['IDENTIFIER', 'DEFAULT'], "Invalid ExportSpecifier");
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseInvocation() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseInvocation(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseInvocation(). Possible grammar cycle.");
+  }
 }
 try {
   // Check for special starting tokens
@@ -2180,16 +2249,18 @@ try {
     }
   }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseOptFuncExist() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseOptFuncExist(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseOptFuncExist(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'FUNC_EXIST':
@@ -2199,16 +2270,18 @@ switch (this.la.kind) {    case 'FUNC_EXIST':
       }default:      // ε production
       return null;  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseArguments() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseArguments(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseArguments(). Possible grammar cycle.");
+  }
 }
 try {
   this._match('CALL_START');
@@ -2230,16 +2303,18 @@ try {
   this._match('CALL_END');
   return args;
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseThis() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseThis(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseThis(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'THIS':
@@ -2253,22 +2328,24 @@ switch (this.la.kind) {    case 'THIS':
       return "this";
       }default:      this._error(['THIS', '@'], "Invalid This");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseThisProperty() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseThisProperty(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseThisProperty(). Possible grammar cycle.");
+  }
 }
 try {
     const $$1 = this._match('@');
-      const $$2 = this.parseProperty();
+      const $$2 = this._match('PROPERTY');
       return [".", "this", $$2];  } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
@@ -2371,11 +2448,13 @@ parseArray() {
 }
 
 parseRangeDots() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseRangeDots(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseRangeDots(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case '..':
@@ -2389,16 +2468,18 @@ switch (this.la.kind) {    case '..':
       return "...";
       }default:      this._error(['..', '...'], "Invalid RangeDots");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseRange() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseRange(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseRange(). Possible grammar cycle.");
+  }
 }
 try {
     const $$1 = this._match('[');
@@ -2407,7 +2488,7 @@ try {
       const $$4 = this.parseExpression();
       const $$5 = this._match(']');
       return [$$3, $$2, $$4];  } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
@@ -2518,11 +2599,13 @@ switch (this.la.kind) {    case ',':
 }
 
 parseArg() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseArg(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseArg(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'IF':
@@ -2620,7 +2703,7 @@ switch (this.la.kind) {    case 'IF':
   this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'THROW', 'IDENTIFIER', '@', '[', '{', 'NUMBER', 'JS', 'REGEX', 'REGEX_START', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', 'STRING', 'STRING_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', '...'], "Invalid Arg");
   }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
@@ -2693,11 +2776,13 @@ switch (this.la.kind) {    case ',':
 }
 
 parseArgElision() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseArgElision(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseArgElision(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'IF':
@@ -2937,16 +3022,18 @@ switch (this.la.kind) {    case 'IF':
       return [...$$1, $$2];
       }default:      this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'THROW', 'IDENTIFIER', '@', 'JS', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', '[', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', '{', 'NUMBER', 'STRING', 'STRING_START', 'REGEX', 'REGEX_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', '...', ','], "Invalid ArgElision");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseOptElisions() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseOptElisions(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseOptElisions(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case ',':
@@ -2956,23 +3043,25 @@ switch (this.la.kind) {    case ',':
       return [...$$2];
       }default:      this._error([','], "Invalid OptElisions");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseElisions() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseElisions(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseElisions(). Possible grammar cycle.");
+  }
 }
 try {
 // List pattern: Elisions → Elision ElisionsTail
     const $$1 = this.parseElision();
 const $$2 = this.parseElisionsTail();
     return [$$1, ...$$2];  } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
@@ -2987,11 +3076,13 @@ switch (this.la.kind) {    case ',':
 }
 
 parseElision() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseElision(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseElision(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case ',':
@@ -3000,23 +3091,25 @@ switch (this.la.kind) {    case ',':
       return null;
       }default:      this._error([','], "Invalid Elision");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseSimpleArgs() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseSimpleArgs(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseSimpleArgs(). Possible grammar cycle.");
+  }
 }
 try {
 // List pattern: SimpleArgs → Expression SimpleArgsTail
     const $$1 = this.parseExpression();
 const $$2 = this.parseSimpleArgsTail();
     return Array.isArray($$2) && $$2.length > 0 ? [$$1, ...$$2] : $$1;  } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
@@ -3061,11 +3154,13 @@ parseTry() {
 }
 
 parseCatch() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseCatch(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseCatch(). Possible grammar cycle.");
+  }
 }
 try {
   this._match('CATCH');
@@ -3087,16 +3182,18 @@ try {
     return [param, block];
   }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseThrow() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseThrow(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseThrow(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'THROW':
@@ -3106,16 +3203,18 @@ switch (this.la.kind) {    case 'THROW':
       return ["throw", $$2];
       }default:      this._error(['THROW'], "Invalid Throw");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseParenthetical() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseParenthetical(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseParenthetical(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case '(':
@@ -3126,16 +3225,18 @@ switch (this.la.kind) {    case '(':
       return $$2.length === 1 ? $$2[0] : $$2;
       }default:      this._error(['('], "Invalid Parenthetical");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseWhileSource() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseWhileSource(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseWhileSource(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'WHILE':
@@ -3151,16 +3252,18 @@ switch (this.la.kind) {    case 'WHILE':
       return ["until", $$2];
       }default:      this._error(['WHILE', 'UNTIL'], "Invalid WhileSource");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseWhile() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseWhile(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseWhile(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'WHILE':
@@ -3181,16 +3284,18 @@ switch (this.la.kind) {    case 'WHILE':
       return $$1;
       }default:      this._error(['WHILE', 'UNTIL', 'LOOP'], "Invalid While");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseLoop() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseLoop(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseLoop(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'LOOP':
@@ -3200,7 +3305,7 @@ switch (this.la.kind) {    case 'LOOP':
       return ["loop", $$2];
       }default:      this._error(['LOOP'], "Invalid Loop");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
@@ -3300,11 +3405,13 @@ parseFor() {
 }
 
 parseForValue() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseForValue(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseForValue(). Possible grammar cycle.");
+  }
 }
 try {
   const forVar = this.parseForVar();
@@ -3319,16 +3426,18 @@ try {
   // No default - just return the variable
   return forVar;
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseForVar() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseForVar(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseForVar(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'IDENTIFIER':
@@ -3342,7 +3451,7 @@ switch (this.la.kind) {    case 'IDENTIFIER':
   this._error(['IDENTIFIER', '@', '[', '{'], "Invalid ForVar");
   }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
@@ -3388,18 +3497,20 @@ parseSwitch() {
 }
 
 parseWhens() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseWhens(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseWhens(). Possible grammar cycle.");
+  }
 }
 try {
 // List pattern: Whens → When WhensTail
     const $$1 = this.parseWhen();
 const $$2 = this.parseWhensTail();
     return [$$1, ...$$2];  } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
@@ -3414,11 +3525,13 @@ switch (this.la.kind) {    case 'LEADING_WHEN':
 }
 
 parseWhen() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseWhen(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseWhen(). Possible grammar cycle.");
+  }
 }
 try {
   this._match('LEADING_WHEN');
@@ -3432,32 +3545,36 @@ try {
 
   return ["when", args, block];
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseIfBlock() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseIfBlock(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseIfBlock(). Possible grammar cycle.");
+  }
 }
 try {
     const $$1 = this._match('IF');
       const $$2 = this.parseOperation();
       const $$3 = this.parseBlock();
       return ["if", $$2, $$3];  } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseUnlessBlock() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseUnlessBlock(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseUnlessBlock(). Possible grammar cycle.");
+  }
 }
 try {
   this._match('UNLESS');
@@ -3475,7 +3592,7 @@ try {
   // No else - just unless
   return ["unless", condition, thenBlock];
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
@@ -3520,11 +3637,13 @@ parseIf() {
 }
 
 parseOperationLine() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseOperationLine(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseOperationLine(). Possible grammar cycle.");
+  }
 }
 try {
 switch (this.la.kind) {    case 'UNARY':
@@ -3546,16 +3665,18 @@ switch (this.la.kind) {    case 'UNARY':
       return ["do-iife", $$2];
       }default:      this._error(['UNARY', 'DO', 'DO_IIFE'], "Invalid OperationLine");  }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseOperation() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseOperation(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseOperation(). Possible grammar cycle.");
+  }
 }
 try {
 // Binary operator iteration (FULL IMPLEMENTATION!)
@@ -4131,37 +4252,41 @@ while (true) {
     }
   }
   } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parseDoIife() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseDoIife(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parseDoIife(). Possible grammar cycle.");
+  }
 }
 try {
     const $$1 = this._match('DO_IIFE');
       const $$2 = this.parseCode();
       return ["do-iife", $$2];  } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }
 
 parse$accept() {
-// Recursion depth tracking
-this.depth++;
-if (this.depth > this.maxDepth) {
-  this.depth--;
-  this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parse$accept(). Possible grammar cycle.");
+// Recursion depth tracking (optional for performance)
+if (this.trackDepth) {
+  this.depth++;
+  if (this.depth > this.maxDepth) {
+    this.depth--;
+    this._error([], "Maximum recursion depth (" + this.maxDepth + ") exceeded in parse$accept(). Possible grammar cycle.");
+  }
 }
 try {
     const $$1 = this.parseRoot();
       const $$2 = this._match('$end');
       return [$$1, $$2];  } finally {
-    this.depth--;
+    if (this.trackDepth) this.depth--;
   }
 }}
 
