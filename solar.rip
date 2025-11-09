@@ -2304,27 +2304,28 @@ class Generator
     uniqueTokens = Array.from(new Set(elementFirstSet))
     firstCases = uniqueTokens.map((tok) -> "'#{tok}'").join(', ')
 
-    # Build the function
-    code = "  parse#{typeName}() {\n"
-    code += "    if (this.la.kind === '#{separator}') {\n"
-    code += "      this._match('#{separator}');\n"
-    code += "      // Check if next token can start #{elementType}\n"
-    code += "      if ([#{firstCases}].includes(this.la.kind)) {\n"
-    code += "        // Rule: #{separator} #{elementType} #{typeName}\n"
-    code += "        const elem = this.parse#{elementType}();\n"
-    code += "        const tail = this.parse#{typeName}();\n"
-    code += "        return [elem, ...tail];\n"
-    code += "      } else {\n"
-    code += "        // Rule: #{separator} #{typeName} (skip separator, continue)\n"
-    code += "        const tail = this.parse#{typeName}();\n"
-    code += "        return [...tail];\n"
-    code += "      }\n"
-    code += "    } else {\n"
-    code += "      // ε production\n"
-    code += "      return [];\n"
-    code += "    }\n"
-    code += "  }\n"
-    code
+    # Build the function (using clean heredoc style)
+    """
+  parse#{typeName}() {
+    if (this.la.kind === '#{separator}') {
+      this._match('#{separator}');
+      // Check if next token can start #{elementType}
+      if ([#{firstCases}].includes(this.la.kind)) {
+        // Rule: #{separator} #{elementType} #{typeName}
+        const elem = this.parse#{elementType}();
+        const tail = this.parse#{typeName}();
+        return [elem, ...tail];
+      } else {
+        // Rule: #{separator} #{typeName} (skip separator, continue)
+        const tail = this.parse#{typeName}();
+        return [...tail];
+      }
+    } else {
+      // ε production
+      return [];
+    }
+  }
+"""
 
   # Special handler for ArgList - parse comma-separated arguments
   _generateArgListSpecial: (rules) ->
