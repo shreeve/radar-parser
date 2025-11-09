@@ -816,107 +816,71 @@ class Generator
     export default parser;
     '''
 
+  # Dispatch table for special handlers (much cleaner than if-else ladder!)
+  _specialHandlers:
+    Root: '_generateRootSpecial'
+    Expression: '_generateExpressionSpecial'
+    For: '_generateForSpecial'
+    Code: '_generateCodeSpecial'
+    Def: '_generateDefSpecial'
+    Block: '_generateBlockSpecial'
+    If: '_generateIfSpecial'
+    UnlessBlock: '_generateUnlessBlockSpecial'
+    Assign: '_generateAssignSpecial'
+    Assignable: '_generateAssignableSpecial'
+    Value: '_generateValueSpecial'
+    ArgList: '_generateArgListSpecial'
+    ArgElisionList: '_generateArgElisionListSpecial'
+    Array: '_generateArraySpecial'
+    Object: '_generateObjectSpecial'
+    AssignList: '_generateAssignListSpecial'
+    AssignObj: '_generateAssignObjSpecial'
+    InterpolationChunk: '_generateInterpolationChunkSpecial'
+    Slice: '_generateSliceSpecial'
+    Class: '_generateClassSpecial'
+    Param: '_generateParamSpecial'
+    Return: '_generateReturnSpecial'
+    Statement: '_generateStatementSpecial'
+    Yield: '_generateYieldSpecial'
+    Try: '_generateTrySpecial'
+    Catch: '_generateCatchSpecial'
+    ForVariables: '_generateForVariablesSpecial'
+    ForValue: '_generateForValueSpecial'
+    Switch: '_generateSwitchSpecial'
+    When: '_generateWhenSpecial'
+    Invocation: '_generateInvocationSpecial'
+    Arguments: '_generateArgumentsSpecial'
+    Import: '_generateImportSpecial'
+    Export: '_generateExportSpecial'
+    ImportSpecifier: '_generateImportSpecifierSpecial'
+    ExportSpecifier: '_generateExportSpecifierSpecial'
+
   # Generate parse function for a nonterminal
   _generateRDFunction: (typeName, type) ->
     rules = type.rules
     return null unless rules?.length
 
-    # Pattern recognition
     try
-      func = null
-      # Special cases that need custom handling
-      if typeName is 'Root'
-        func = @_generateRootSpecial(rules)
-      else if typeName is 'Expression'
-        func = @_generateExpressionSpecial(rules)
-      else if typeName is 'For'
-        func = @_generateForSpecial(rules)
-      else if typeName is 'Code'
-        func = @_generateCodeSpecial(rules)
-      else if typeName is 'Def'
-        func = @_generateDefSpecial(rules)
-      else if typeName is 'Block'
-        func = @_generateBlockSpecial(rules)
-      else if typeName is 'If'
-        func = @_generateIfSpecial(rules)
-      else if typeName is 'UnlessBlock'
-        func = @_generateUnlessBlockSpecial(rules)
-      else if typeName is 'Assign'
-        func = @_generateAssignSpecial(rules)
-      else if typeName is 'Assignable'
-        func = @_generateAssignableSpecial(rules)
-      else if typeName is 'Value'
-        func = @_generateValueSpecial(rules)
-      else if typeName is 'ArgList'
-        func = @_generateArgListSpecial(rules)
-      else if typeName is 'ArgElisionList'
-        func = @_generateArgElisionListSpecial(rules)
-      else if typeName is 'Array'
-        func = @_generateArraySpecial(rules)
-      else if typeName is 'Object'
-        func = @_generateObjectSpecial(rules)
-      else if typeName is 'AssignList'
-        func = @_generateAssignListSpecial(rules)
-      else if typeName is 'AssignObj'
-        func = @_generateAssignObjSpecial(rules)
-      else if typeName is 'InterpolationChunk'
-        func = @_generateInterpolationChunkSpecial(rules)
-      else if typeName is 'Slice'
-        func = @_generateSliceSpecial(rules)
-      else if typeName is 'Class'
-        func = @_generateClassSpecial(rules)
-      else if typeName is 'Param'
-        func = @_generateParamSpecial(rules)
-      else if typeName is 'Return'
-        func = @_generateReturnSpecial(rules)
-      else if typeName is 'Statement'
-        func = @_generateStatementSpecial(rules)
-      else if typeName is 'Yield'
-        func = @_generateYieldSpecial(rules)
-      else if typeName is 'Try'
-        func = @_generateTrySpecial(rules)
-      else if typeName is 'Catch'
-        func = @_generateCatchSpecial(rules)
-      else if typeName is 'ForVariables'
-        func = @_generateForVariablesSpecial(rules)
-      else if typeName is 'ForValue'
-        func = @_generateForValueSpecial(rules)
-      else if typeName is 'Switch'
-        func = @_generateSwitchSpecial(rules)
-      else if typeName is 'When'
-        func = @_generateWhenSpecial(rules)
-      else if typeName is 'Invocation'
-        func = @_generateInvocationSpecial(rules)
-      else if typeName is 'Arguments'
-        func = @_generateArgumentsSpecial(rules)
-      else if typeName is 'Import'
-        func = @_generateImportSpecial(rules)
-      else if typeName is 'Export'
-        func = @_generateExportSpecial(rules)
-      else if typeName is 'ImportSpecifier'
-        func = @_generateImportSpecifierSpecial(rules)
-      else if typeName is 'ExportSpecifier'
-        func = @_generateExportSpecifierSpecial(rules)
-      else if typeName.endsWith('Tail') and rules.length is 3
-        # Special handling for *Tail recursion patterns with 3 rules
-        # (separator+element+tail, separator+tail, epsilon)
-        func = @_generateTailSpecial(typeName, rules)
-      else if @_isTailRecursion(typeName, rules)
-        func = @_generateListLoop(typeName, rules)
-      else if @_isBinaryOp(typeName, rules)
-        func = @_generateBinaryOpLoop(typeName, rules)
-      else if typeName is 'Operation'
-        # Force Operation to use iterative handler
-        func = @_generateOperationIterative(typeName, rules)
-      else if @_isAccessorChain(typeName, rules)
-        func = @_generateAccessorLoop(typeName, rules)
-      else if @_isDispatchRule(rules)
-        func = @_generateSmartDispatch(typeName, rules)
-      else
-        func = @_generateSwitchDispatch(typeName, rules)
+      # Check for special handler first (O(1) lookup!)
+      if handlerName = @_specialHandlers[typeName]
+        return this[handlerName](rules)
 
-      # Return function directly - no wrapping needed!
-      return func
+      # Pattern-based handlers (in priority order)
+      if typeName.endsWith('Tail') and rules.length is 3
+        return @_generateTailSpecial(typeName, rules)
+      else if @_isTailRecursion(typeName, rules)
+        return @_generateListLoop(typeName, rules)
+      else if @_isBinaryOp(typeName, rules)
+        return @_generateBinaryOpLoop(typeName, rules)
+      else if typeName is 'Operation'
+        return @_generateOperationIterative(typeName, rules)
+      else if @_isAccessorChain(typeName, rules)
+        return @_generateAccessorLoop(typeName, rules)
+      else if @_isDispatchRule(rules)
+        return @_generateSmartDispatch(typeName, rules)
+      else
+        return @_generateSwitchDispatch(typeName, rules)
+
     catch error
       console.error "Error generating #{typeName}:", error.message
       return null

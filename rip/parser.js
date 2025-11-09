@@ -942,11 +942,11 @@ case '?::':
   break;
 case 'INDEX_START':
   this._match('INDEX_START');
-  
+
   // Check for regex indexing: value[/pattern/] or value[/pattern/, n]
   if (this.la.kind === 'REGEX' || this.la.kind === 'REGEX_START') {
     const regex = this.parseRegex();
-    
+
     // Check for capture group number: [/pattern/, 1]
     if (this.la.kind === ',') {
       this._match(',');
