@@ -10,10 +10,9 @@
  *   bun test/runner-hybrid.js test/rip/operators.rip
  */
 
-import { readFileSync, readdirSync, statSync, mkdirSync } from 'fs';
-import { join, extname, relative, basename } from 'path';
+import { readFileSync, readdirSync, statSync } from 'fs';
+import { join, extname, relative } from 'path';
 import { compile } from '../rip/compiler.js';
-import { tmpdir } from 'os';
 
 // ANSI colors
 const colors = {
