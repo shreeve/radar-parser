@@ -631,7 +631,7 @@ grammar =
   # Simple argument lists for switch statements
   # FIXED: Removed left recursion - now uses SimpleArgsTail helper
   SimpleArgs: [
-    o 'Expression SimpleArgsTail', 'Array.isArray($2) && $2.length > 0 ? [$1, ...$2] : [$1]'
+    o 'Expression SimpleArgsTail', 'Array.isArray($2) && $2.length > 0 ? [$1, ...$2] : $1'
   ]
 
   # Tail helper for SimpleArgs

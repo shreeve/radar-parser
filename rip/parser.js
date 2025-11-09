@@ -3015,7 +3015,7 @@ try {
 // List pattern: SimpleArgs → Expression SimpleArgsTail
     const $$1 = this.parseExpression();
 const $$2 = this.parseSimpleArgsTail();
-    return Array.isArray($$2) && $$2.length > 0 ? [$$1, ...$$2] : [$$1];  } finally {
+    return Array.isArray($$2) && $$2.length > 0 ? [$$1, ...$$2] : $$1;  } finally {
     this.depth--;
   }
 }
@@ -3307,14 +3307,14 @@ if (this.depth > this.maxDepth) {
 }
 try {
   const forVar = this.parseForVar();
-  
+
   // Check for default value
   if (this.la.kind === '=') {
     this._match('=');
     const defaultExpr = this.parseExpression();
     return ["default", forVar, defaultExpr];
   }
-  
+
   // No default - just return the variable
   return forVar;
   } finally {
