@@ -3294,6 +3294,7 @@ parseFor() {
       }
     }
   } else {
+    // Not FOR keyword at all
     this._error(['FOR'], "Invalid For");
   }
 }
