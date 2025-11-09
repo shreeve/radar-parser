@@ -16,7 +16,6 @@
  *   node test/runner-hybrid.js test/rip
  */
 
-import { execSync } from 'child_process';
 import { readFileSync, readdirSync, statSync, mkdirSync } from 'fs';
 import { join, extname, relative, basename } from 'path';
 import { compile } from '../rip/compiler.js';
@@ -154,8 +153,10 @@ async function runTestFile(filePath) {
   console.log(`\n${colors.cyan}${currentFile}${colors.reset}`);
 
   try {
-    // Use production Rip to compile the test file
-    const jsCode = execSync(`rip -c ${filePath}`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+    // Use OUR RD compiler to compile the test file (fast, no process spawn!)
+    const source = readFileSync(filePath, 'utf-8');
+    const result = compile(source);
+    const jsCode = result.code;
 
     // Execute the compiled test file with our test helpers
     const testFn = new (async function(){}).constructor('test', 'code', 'fail', 'console', jsCode);
