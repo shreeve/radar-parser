@@ -16,7 +16,7 @@
 
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, extname, relative } from 'path';
-import { compile } from '../compiler-rd.js';
+import { compile } from '../../rip/compiler.js';
 
 // ANSI colors
 const colors = {
