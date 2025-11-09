@@ -1013,24 +1013,30 @@ parseSplat() {const $$1 = this._match('...');
 
   parseValue() {
     // Parse base value
+    // NOTE: Cases ordered by frequency - most common first for better branch prediction
     let base;
     switch (this.la.kind) {
+      // Very common - identifiers, numbers, strings
       case 'IDENTIFIER':
       case '{':
         base = this.parseAssignable();
         break;
-      case 'SUPER':
-        // SUPER can be: super.prop, super[expr], or super(args)
-        // Consume token and check what follows to determine type
-        this._match('SUPER');
-        base = "super";  // Base case
+      case 'NUMBER':
+      case 'STRING':
+      case 'STRING_START':
+        base = this.parseLiteral();
         break;
-      case 'DYNAMIC_IMPORT':
-        // DYNAMIC_IMPORT Arguments → parse as invocation, then handle accessors
-        base = this.parseInvocation();
+      case '(':
+        // Could be Parenthetical or Assignable with paren
+        base = this.parseParenthetical();
         break;
-      case 'DO_IIFE':
-        base = this.parseDoIife();
+      case '[':
+        // Could be Array or Range - try Range first (it's more specific)
+        // Range: [ Expression .. Expression ]
+        // Array: [ ... ]
+        // We need to lookahead to distinguish, but for now just try Array
+        // (Range will be handled if Array sees .. or ...)
+        base = this.parseAssignable();
         break;
       case '@':
         // Bare @ alone means "this", but @ followed by more is @property
@@ -1044,39 +1050,41 @@ parseSplat() {const $$1 = this._match('...');
           base = "this";
         }
         break;
+      // Moderately common
       case 'THIS':
         // THIS keyword maps to "this"
         this._match('THIS');
         base = "this";
         break;
-      case 'NEW_TARGET':
-      case 'IMPORT_META':
-        base = this.parseMetaProperty();
-        break;
-      case '[':
-        // Could be Array or Range - try Range first (it's more specific)
-        // Range: [ Expression .. Expression ]
-        // Array: [ ... ]
-        // We need to lookahead to distinguish, but for now just try Array
-        // (Range will be handled if Array sees .. or ...)
-        base = this.parseAssignable();
-        break;
-      case '(':
-        // Could be Parenthetical or Assignable with paren
-        base = this.parseParenthetical();
-        break;
-      case 'NUMBER':
-      case 'STRING':
-      case 'STRING_START':
       case 'JS':
       case 'UNDEFINED':
       case 'NULL':
       case 'BOOL':
       case 'INFINITY':
       case 'NAN':
+        base = this.parseLiteral();
+        break;
       case 'REGEX':
       case 'REGEX_START':
         base = this.parseLiteral();
+        break;
+      // Less common - special cases
+      case 'DO_IIFE':
+        base = this.parseDoIife();
+        break;
+      case 'SUPER':
+        // SUPER can be: super.prop, super[expr], or super(args)
+        // Consume token and check what follows to determine type
+        this._match('SUPER');
+        base = "super";  // Base case
+        break;
+      case 'DYNAMIC_IMPORT':
+        // DYNAMIC_IMPORT Arguments → parse as invocation, then handle accessors
+        base = this.parseInvocation();
+        break;
+      case 'NEW_TARGET':
+      case 'IMPORT_META':
+        base = this.parseMetaProperty();
         break;
       default:
         this._error([], "Invalid Value");
