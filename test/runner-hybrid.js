@@ -1,19 +1,13 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 /**
- * Hybrid Test Runner for RD Parser
+ * Rip Test Runner for RD Parser
  *
- * Uses production Rip to compile test files, then those tests exercise our RD parser!
- *
- * Workflow:
- * 1. Test file.rip → Production Rip → test JavaScript
- * 2. Execute test JS → calls test("name", "code", expected)
- * 3. test() uses OUR RD COMPILER to compile "code"
- * 4. Compare results!
+ * Runs .rip test files using our recursive descent parser.
  *
  * Usage:
- *   node test/runner-hybrid.js test/rip/basic.rip
- *   node test/runner-hybrid.js test/rip
+ *   bun test/runner-hybrid.js test/rip
+ *   bun test/runner-hybrid.js test/rip/operators.rip
  */
 
 import { readFileSync, readdirSync, statSync, mkdirSync } from 'fs';
@@ -278,9 +272,5 @@ async function main(args) {
   process.exit(totalTests.fail > 0 ? 1 : 0);
 }
 
-// Run if called directly
-if (import.meta.main) {
-  await main(process.argv.slice(2));
-}
-
-export { test, code, fail };
+// Run
+await main(process.argv.slice(2));
