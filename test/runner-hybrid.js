@@ -187,11 +187,21 @@ async function runTestFile(filePath) {
   try {
     const source = readFileSync(filePath, 'utf-8');
     const result = compile(source);
-    const jsCode = result.code;
 
-    // Execute the compiled test file with our test helpers
-    const testFn = new (async function(){}).constructor('test', 'code', 'fail', 'console', jsCode);
-    await testFn(test, code, fail, console);
+    // Create test environment with test helpers
+    const testEnv = {
+      test,
+      code,
+      fail,
+      console,
+      // For async tests
+      Promise,
+      async: true,
+    };
+
+    // Execute test file as async function
+    const testFn = new (async function(){}).constructor(...Object.keys(testEnv), result.code);
+    await testFn(...Object.values(testEnv));
 
   } catch (error) {
     console.log(`  ${colors.red}✗ File failed to compile/execute${colors.reset}`);
