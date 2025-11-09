@@ -51,10 +51,27 @@ function normalizeCode(code) {
 }
 
 // Test helper: Execute code and compare result
+// Note: Async to support await - but await on non-promises is instant
 async function test(name, code, expected) {
   try {
     const result = compile(code);
-    const actual = await eval(result.code);
+
+    // Check if code contains for-await or top-level await (needs async wrapper)
+    const needsAsyncWrapper = result.code.includes('for await') ||
+                              (result.code.includes('await ') && !result.code.includes('async function'));
+
+    let actual;
+    if (needsAsyncWrapper) {
+      // Wrap in async function for for-await support
+      const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+      const fn = new AsyncFunction(result.code);
+      actual = await fn();
+    } else {
+      // Regular eval (preserves function types like AsyncFunction)
+      actual = eval(result.code);
+      // If result is a Promise, await it
+      actual = await actual;
+    }
 
     if (JSON.stringify(actual) === JSON.stringify(expected)) {
       fileTests.pass++;
@@ -76,7 +93,7 @@ async function test(name, code, expected) {
   } catch (error) {
     fileTests.fail++;
     totalTests.fail++;
-    console.log(`  ${colors.red}✗${colors.reset} ${name} - ${error.message.split('\n')[0]}`);
+    console.log(`  ${colors.red}✗${colors.reset} ${name}`);
     failures.push({
       file: currentFile,
       test: name,
@@ -230,8 +247,6 @@ async function main(args) {
     process.exit(0);
   }
 
-  console.log(`${colors.bright}🧪 Hybrid Test Runner${colors.reset}`);
-  console.log(`${colors.bright}Production Rip compiles test files → Our RD Parser runs tests${colors.reset}`);
   console.log(`${colors.bright}Running ${testFiles.length} test file(s)...${colors.reset}`);
 
   for (const file of testFiles) {
