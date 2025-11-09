@@ -277,7 +277,7 @@ function printFailures() {
   }
 }
 
-// Main
+// Main entry point
 async function main(args) {
   // Default to test/rip if no arguments provided
   if (args.length === 0) {
