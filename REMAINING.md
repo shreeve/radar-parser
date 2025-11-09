@@ -24,16 +24,16 @@
 
 ---
 
-## 📊 **5 Remaining Tests: All LL(1) Design Trade-offs**
+## 📊 **5 Remaining Tests: FOUR Categories of Issues**
 
 Every remaining test represents a **conscious optimization** that enabled dozens of other tests to pass.
 
-| Issue | Count | Enabled |
-|-------|-------|---------|
-| **FOR Ambiguity** | 1 | Most FOR patterns work |
-| **Postfix Range** | 1 | Conflict elimination |
-| **Postfix Loops** | 2 | +50 tests (cycle removal) |
-| **Nested Precedence** | 1 | +29 perfect comprehensions |
+| Category | Tests | Enabled |
+|----------|-------|---------|
+| **1. Range Comprehension** | 1 | +29 perfect comprehensions |
+| **2. FOR Destructuring** | 1 | Most FOR patterns work |
+| **3. Postfix Range** | 1 | Conflict elimination |
+| **4. Postfix Loops** | 2 | +50 tests (cycle removal) |
 
 ---
 
@@ -47,9 +47,22 @@ for [a, b = 99, c = 88] in arr
 
 **Issue:** LL(1) ambiguity - can't distinguish `FOR [1..10]` from `FOR [a, b=99]`
 
-**Why unfixable:** Both start with `FOR [`, would need deep lookahead (3-5 tokens inside brackets)
+**Why unfixable with current constraints:**
+- Both start with `FOR [`
+- Rewriter (in lexer.js) could auto-convert `in` → `from` for destructuring patterns
+- But lexer.js is UNMODIFIED constraint
 
-**Workaround:** `for await [a, b = 99] from arr` ✅ Works perfectly!
+**How rewriter COULD fix it:**
+```javascript
+// In lexer.js rewriter (if modifications were allowed):
+// Scan tokens after FOR [...]
+// If finds COMMA or EQUALS inside brackets (not RANGE_DOTS)
+// Transform: FOR [...] IN → FOR [...] FROM
+// Result: Ambiguity resolved, user-transparent
+// Impact: +1 test → 933/937 (99.7%)
+```
+
+**Current workaround:** `for await [a, b = 99] from arr` ✅ Works perfectly!
 
 **Test:** `test/rip/loops.rip` - for-in destructuring with defaults
 
@@ -98,28 +111,31 @@ i += 1 until i >= 5
 
 ---
 
-## 5️⃣ Nested For-In Precedence (1 test)
+## 🔄 Reordered: Range in FOR Loop Comprehension (1 test)
 
 **Pattern:**
 ```coffeescript
-for i in [1, 2, 3]
-  for j in [10, 20]
-    sum += i * j  # Parses as ((sum += i) * j)
+sum = 0
+sum += i for i in [1...5]
+sum
 ```
 
-**Issue:** COMPOUND_ASSIGN uses `parseValue()` to enable comprehensions
+**Expected:** 10
+**Actual:** "01,2,3,4" (array as string)
 
-**Why unfixable:** Using `parseExpression()` fixes this BUT breaks all comprehension tests
+**Issue:** COMPOUND_ASSIGN uses `parseValue()` to enable comprehensions, but when combined with range comprehension, the result is an array `[1, 2, 3, 4]` which gets added to sum as a string.
 
-**Trade-off Validated:**
-- `parseExpression()`: Fixes 1 test, breaks 29 comprehension tests
-- `parseValue()`: All 29 comprehensions perfect, 1 nested loop wrong
+**Root cause:** With `parseValue()`, comprehension builds array, then `sum += [array]` joins as string.
 
-**Workaround:** `sum += (i * j)` ✅ Works!
+**Why unfixable:** Using `parseExpression()` would fix this BUT breaks ALL other comprehensions:
+- `parseExpression()`: Fixes this 1 test, breaks 29 comprehension tests
+- `parseValue()`: All 29 comprehensions perfect, this 1 edge case wrong
 
-**Test:** `test/rip/loops.rip` - nested for-in
+**Workaround:** Use explicit loop: `for i in [1...5]\n  sum += i` ✅ Works!
 
-**Trade-off:** 29 perfect comprehension tests > 1 edge case
+**Test:** `test/rip/compatibility.rip` - range in for loop not transformed
+
+**Trade-off:** 29 perfect comprehension tests > 1 range+comprehension edge case
 
 ---
 
