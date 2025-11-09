@@ -135,104 +135,55 @@ if (this.trackDepth) {
   }
 }
 try {
-switch (this.la.kind) {    case 'IF':
-      return this.parseExpression();
-    case 'UNLESS':
-      return this.parseExpression();
-    case 'FOR':
-      return this.parseExpression();
-    case 'WHILE':
-      return this.parseExpression();
-    case 'UNTIL':
-      return this.parseExpression();
-    case 'LOOP':
-      return this.parseExpression();
-    case 'TRY':
-      return this.parseExpression();
-    case 'SWITCH':
-      return this.parseExpression();
-    case 'DEF':
-      return this.parseExpression();
-    case 'CLASS':
-      return this.parseExpression();
-    case 'PARAM_START':
-      return this.parseExpression();
-    case '->':
-      return this.parseExpression();
-    case '=>':
-      return this.parseExpression();
-    case 'YIELD':
-      return this.parseExpression();
-    case 'THROW':
-      return this.parseExpression();
-    case 'IDENTIFIER':
-      return this.parseExpression();
-    case '@':
-      return this.parseExpression();
-    case '[':
-      return this.parseExpression();
-    case '{':
-      return this.parseExpression();
-    case 'NUMBER':
-      return this.parseExpression();
-    case 'JS':
-      return this.parseExpression();
-    case 'REGEX':
-      return this.parseExpression();
-    case 'REGEX_START':
-      return this.parseExpression();
-    case 'UNDEFINED':
-      return this.parseExpression();
-    case 'NULL':
-      return this.parseExpression();
-    case 'BOOL':
-      return this.parseExpression();
-    case 'INFINITY':
-      return this.parseExpression();
-    case 'NAN':
-      return this.parseExpression();
-    case '(':
-      return this.parseExpression();
-    case 'SUPER':
-      return this.parseExpression();
-    case 'DYNAMIC_IMPORT':
-      return this.parseExpression();
-    case 'DO_IIFE':
-      return this.parseExpression();
-    case 'THIS':
-      return this.parseExpression();
-    case 'NEW_TARGET':
-      return this.parseExpression();
-    case 'IMPORT_META':
-      return this.parseExpression();
-    case 'STRING':
-      return this.parseExpression();
-    case 'STRING_START':
-      return this.parseExpression();
-    case 'UNARY':
-      return this.parseExpression();
-    case 'DO':
-      return this.parseExpression();
-    case 'UNARY_MATH':
-      return this.parseExpression();
-    case '-':
-      return this.parseExpression();
-    case '+':
-      return this.parseExpression();
-    case 'AWAIT':
-      return this.parseExpression();
-    case '--':
-      return this.parseExpression();
-    case '++':
-      return this.parseExpression();
-    case 'RETURN':
-      return this.parseStatement();
-    case 'STATEMENT':
-      return this.parseStatement();
-    case 'IMPORT':
-      return this.parseStatement();
-    case 'EXPORT':
-      return this.parseStatement();default:
+switch (this.la.kind) {    case 'IF': return this.parseExpression();
+    case 'UNLESS': return this.parseExpression();
+    case 'FOR': return this.parseExpression();
+    case 'WHILE': return this.parseExpression();
+    case 'UNTIL': return this.parseExpression();
+    case 'LOOP': return this.parseExpression();
+    case 'TRY': return this.parseExpression();
+    case 'SWITCH': return this.parseExpression();
+    case 'DEF': return this.parseExpression();
+    case 'CLASS': return this.parseExpression();
+    case 'PARAM_START': return this.parseExpression();
+    case '->': return this.parseExpression();
+    case '=>': return this.parseExpression();
+    case 'YIELD': return this.parseExpression();
+    case 'THROW': return this.parseExpression();
+    case 'IDENTIFIER': return this.parseExpression();
+    case '@': return this.parseExpression();
+    case '[': return this.parseExpression();
+    case '{': return this.parseExpression();
+    case 'NUMBER': return this.parseExpression();
+    case 'JS': return this.parseExpression();
+    case 'REGEX': return this.parseExpression();
+    case 'REGEX_START': return this.parseExpression();
+    case 'UNDEFINED': return this.parseExpression();
+    case 'NULL': return this.parseExpression();
+    case 'BOOL': return this.parseExpression();
+    case 'INFINITY': return this.parseExpression();
+    case 'NAN': return this.parseExpression();
+    case '(': return this.parseExpression();
+    case 'SUPER': return this.parseExpression();
+    case 'DYNAMIC_IMPORT': return this.parseExpression();
+    case 'DO_IIFE': return this.parseExpression();
+    case 'THIS': return this.parseExpression();
+    case 'NEW_TARGET': return this.parseExpression();
+    case 'IMPORT_META': return this.parseExpression();
+    case 'STRING': return this.parseExpression();
+    case 'STRING_START': return this.parseExpression();
+    case 'UNARY': return this.parseExpression();
+    case 'DO': return this.parseExpression();
+    case 'UNARY_MATH': return this.parseExpression();
+    case '-': return this.parseExpression();
+    case '+': return this.parseExpression();
+    case 'AWAIT': return this.parseExpression();
+    case '--': return this.parseExpression();
+    case '++': return this.parseExpression();
+    case 'RETURN': return this.parseStatement();
+    case 'STATEMENT': return this.parseStatement();
+    case 'IMPORT': return this.parseStatement();
+    case 'EXPORT': return this.parseStatement();default:
   this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'THROW', 'IDENTIFIER', '@', '[', '{', 'NUMBER', 'JS', 'REGEX', 'REGEX_START', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', 'STRING', 'STRING_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', 'RETURN', 'STATEMENT', 'IMPORT', 'EXPORT'], "Invalid Line");
   }
   } finally {
@@ -826,12 +777,9 @@ if (this.trackDepth) {
   }
 }
 try {
-switch (this.la.kind) {    case 'IDENTIFIER':
-      return this.parseIdentifier();
-    case 'PROPERTY':
-      return this.parseProperty();
-    case '@':
-      return this.parseThisProperty();default:
+switch (this.la.kind) {    case 'IDENTIFIER': return this.parseIdentifier();
+    case 'PROPERTY': return this.parseProperty();
+    case '@': return this.parseThisProperty();default:
   this._error(['IDENTIFIER', 'PROPERTY', '@'], "Invalid SimpleObjAssignable");
   }
   } finally {
@@ -849,12 +797,9 @@ if (this.trackDepth) {
   }
 }
 try {
-switch (this.la.kind) {    case 'IDENTIFIER':
-      return this.parseSimpleObjAssignable();
-    case 'PROPERTY':
-      return this.parseSimpleObjAssignable();
-    case '@':
-      return this.parseSimpleObjAssignable();
+switch (this.la.kind) {    case 'IDENTIFIER': return this.parseSimpleObjAssignable();
+    case 'PROPERTY': return this.parseSimpleObjAssignable();
+    case '@': return this.parseSimpleObjAssignable();
     case '[':
       {
       const $$1 = this._match('[');
@@ -862,12 +807,9 @@ switch (this.la.kind) {    case 'IDENTIFIER':
       const $$3 = this._match(']');
       return ["computed", $$2];
       }
-    case 'NUMBER':
-      return this.parseAlphaNumeric();
-    case 'STRING':
-      return this.parseAlphaNumeric();
-    case 'STRING_START':
-      return this.parseAlphaNumeric();default:
+    case 'NUMBER': return this.parseAlphaNumeric();
+    case 'STRING': return this.parseAlphaNumeric();
+    case 'STRING_START': return this.parseAlphaNumeric();default:
   this._error(['IDENTIFIER', 'PROPERTY', '@', '[', 'NUMBER', 'STRING', 'STRING_START'], "Invalid ObjAssignable");
   }
   } finally {
@@ -1215,14 +1157,10 @@ if (this.trackDepth) {
   }
 }
 try {
-switch (this.la.kind) {    case 'IDENTIFIER':
-      return this.parseIdentifier();
-    case '@':
-      return this.parseThisProperty();
-    case '[':
-      return this.parseArray();
-    case '{':
-      return this.parseObject();default:
+switch (this.la.kind) {    case 'IDENTIFIER': return this.parseIdentifier();
+    case '@': return this.parseThisProperty();
+    case '[': return this.parseArray();
+    case '{': return this.parseObject();default:
   this._error(['IDENTIFIER', '@', '[', '{'], "Invalid ParamVar");
   }
   } finally {
@@ -2608,98 +2546,52 @@ if (this.trackDepth) {
   }
 }
 try {
-switch (this.la.kind) {    case 'IF':
-      return this.parseExpression();
-    case 'UNLESS':
-      return this.parseExpression();
-    case 'FOR':
-      return this.parseExpression();
-    case 'WHILE':
-      return this.parseExpression();
-    case 'UNTIL':
-      return this.parseExpression();
-    case 'LOOP':
-      return this.parseExpression();
-    case 'TRY':
-      return this.parseExpression();
-    case 'SWITCH':
-      return this.parseExpression();
-    case 'DEF':
-      return this.parseExpression();
-    case 'CLASS':
-      return this.parseExpression();
-    case 'PARAM_START':
-      return this.parseExpression();
-    case '->':
-      return this.parseExpression();
-    case '=>':
-      return this.parseExpression();
-    case 'YIELD':
-      return this.parseExpression();
-    case 'THROW':
-      return this.parseExpression();
-    case 'IDENTIFIER':
-      return this.parseExpression();
-    case '@':
-      return this.parseExpression();
-    case '[':
-      return this.parseExpression();
-    case '{':
-      return this.parseExpression();
-    case 'NUMBER':
-      return this.parseExpression();
-    case 'JS':
-      return this.parseExpression();
-    case 'REGEX':
-      return this.parseExpression();
-    case 'REGEX_START':
-      return this.parseExpression();
-    case 'UNDEFINED':
-      return this.parseExpression();
-    case 'NULL':
-      return this.parseExpression();
-    case 'BOOL':
-      return this.parseExpression();
-    case 'INFINITY':
-      return this.parseExpression();
-    case 'NAN':
-      return this.parseExpression();
-    case '(':
-      return this.parseExpression();
-    case 'SUPER':
-      return this.parseExpression();
-    case 'DYNAMIC_IMPORT':
-      return this.parseExpression();
-    case 'DO_IIFE':
-      return this.parseExpression();
-    case 'THIS':
-      return this.parseExpression();
-    case 'NEW_TARGET':
-      return this.parseExpression();
-    case 'IMPORT_META':
-      return this.parseExpression();
-    case 'STRING':
-      return this.parseExpression();
-    case 'STRING_START':
-      return this.parseExpression();
-    case 'UNARY':
-      return this.parseExpression();
-    case 'DO':
-      return this.parseExpression();
-    case 'UNARY_MATH':
-      return this.parseExpression();
-    case '-':
-      return this.parseExpression();
-    case '+':
-      return this.parseExpression();
-    case 'AWAIT':
-      return this.parseExpression();
-    case '--':
-      return this.parseExpression();
-    case '++':
-      return this.parseExpression();
-    case '...':
-      return this.parseSplat();default:
+switch (this.la.kind) {    case 'IF': return this.parseExpression();
+    case 'UNLESS': return this.parseExpression();
+    case 'FOR': return this.parseExpression();
+    case 'WHILE': return this.parseExpression();
+    case 'UNTIL': return this.parseExpression();
+    case 'LOOP': return this.parseExpression();
+    case 'TRY': return this.parseExpression();
+    case 'SWITCH': return this.parseExpression();
+    case 'DEF': return this.parseExpression();
+    case 'CLASS': return this.parseExpression();
+    case 'PARAM_START': return this.parseExpression();
+    case '->': return this.parseExpression();
+    case '=>': return this.parseExpression();
+    case 'YIELD': return this.parseExpression();
+    case 'THROW': return this.parseExpression();
+    case 'IDENTIFIER': return this.parseExpression();
+    case '@': return this.parseExpression();
+    case '[': return this.parseExpression();
+    case '{': return this.parseExpression();
+    case 'NUMBER': return this.parseExpression();
+    case 'JS': return this.parseExpression();
+    case 'REGEX': return this.parseExpression();
+    case 'REGEX_START': return this.parseExpression();
+    case 'UNDEFINED': return this.parseExpression();
+    case 'NULL': return this.parseExpression();
+    case 'BOOL': return this.parseExpression();
+    case 'INFINITY': return this.parseExpression();
+    case 'NAN': return this.parseExpression();
+    case '(': return this.parseExpression();
+    case 'SUPER': return this.parseExpression();
+    case 'DYNAMIC_IMPORT': return this.parseExpression();
+    case 'DO_IIFE': return this.parseExpression();
+    case 'THIS': return this.parseExpression();
+    case 'NEW_TARGET': return this.parseExpression();
+    case 'IMPORT_META': return this.parseExpression();
+    case 'STRING': return this.parseExpression();
+    case 'STRING_START': return this.parseExpression();
+    case 'UNARY': return this.parseExpression();
+    case 'DO': return this.parseExpression();
+    case 'UNARY_MATH': return this.parseExpression();
+    case '-': return this.parseExpression();
+    case '+': return this.parseExpression();
+    case 'AWAIT': return this.parseExpression();
+    case '--': return this.parseExpression();
+    case '++': return this.parseExpression();
+    case '...': return this.parseSplat();default:
   this._error(['IF', 'UNLESS', 'FOR', 'WHILE', 'UNTIL', 'LOOP', 'TRY', 'SWITCH', 'DEF', 'CLASS', 'PARAM_START', '->', '=>', 'YIELD', 'THROW', 'IDENTIFIER', '@', '[', '{', 'NUMBER', 'JS', 'REGEX', 'REGEX_START', 'UNDEFINED', 'NULL', 'BOOL', 'INFINITY', 'NAN', '(', 'SUPER', 'DYNAMIC_IMPORT', 'DO_IIFE', 'THIS', 'NEW_TARGET', 'IMPORT_META', 'STRING', 'STRING_START', 'UNARY', 'DO', 'UNARY_MATH', '-', '+', 'AWAIT', '--', '++', '...'], "Invalid Arg");
   }
   } finally {
@@ -3440,14 +3332,10 @@ if (this.trackDepth) {
   }
 }
 try {
-switch (this.la.kind) {    case 'IDENTIFIER':
-      return this.parseIdentifier();
-    case '@':
-      return this.parseThisProperty();
-    case '[':
-      return this.parseArray();
-    case '{':
-      return this.parseObject();default:
+switch (this.la.kind) {    case 'IDENTIFIER': return this.parseIdentifier();
+    case '@': return this.parseThisProperty();
+    case '[': return this.parseArray();
+    case '{': return this.parseObject();default:
   this._error(['IDENTIFIER', '@', '[', '{'], "Invalid ForVar");
   }
   } finally {

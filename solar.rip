@@ -1658,10 +1658,10 @@ class Generator
       if @types[symbol]
         # Nonterminal - check if it's trivial (single rule wrapping single terminal)
         symbolType = @types[symbol]
-        isTrivial = symbolType.rules.length is 1 and 
+        isTrivial = symbolType.rules.length is 1 and
                     symbolType.rules[0].symbols.length is 1 and
                     not @types[symbolType.rules[0].symbols[0]]
-        
+
         if isTrivial
           # Inline trivial function - call _match directly
           terminal = symbolType.rules[0].symbols[0]
@@ -3576,15 +3576,14 @@ class Generator
     cases = []
 
     for [token, rule] from tokenToProduction
-      cases.push "    case '#{token}':"
-
       # Generate code
       first = rule.symbols[0]
       if @types[first] and rule.symbols.length is 1
-        # Pass-through: just delegate
-        cases.push "      return this.parse#{first}();"
+        # Pass-through: just delegate (compact format)
+        cases.push "    case '#{token}': return this.parse#{first}();"
       else
         # Complex: generate full parsing
+        cases.push "    case '#{token}':"
         parseCode = @_generateParseCode(rule)
         cases.push "      {"
         cases.push "      #{parseCode}"
