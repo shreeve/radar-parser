@@ -898,7 +898,7 @@ parseSplat() {const $$1 = this._match('...');
     // Parse base case
     switch (this.la.kind) {    case 'IDENTIFIER':
       {
-      const $$1 = this._match('IDENTIFIER');
+      const $$1 = this.parseIdentifier();
       base = $$1;;
       break;
       }
@@ -1224,7 +1224,7 @@ parseSuper() {
       {
       const $$1 = this._match('SUPER');
       const $$2 = this._match('.');
-      const $$3 = this._match('PROPERTY');
+      const $$3 = this.parseProperty();
       return [".", "super", $$3];
       }      default:      this._error(['SUPER'], "Invalid Super");    }
   }
@@ -1234,14 +1234,14 @@ parseMetaProperty() {
       {
       const $$1 = this._match('NEW_TARGET');
       const $$2 = this._match('.');
-      const $$3 = this._match('PROPERTY');
+      const $$3 = this.parseProperty();
       return [".", "new", $$3];
       }
     case 'IMPORT_META':
       {
       const $$1 = this._match('IMPORT_META');
       const $$2 = this._match('.');
-      const $$3 = this._match('PROPERTY');
+      const $$3 = this.parseProperty();
       return [".", "import", $$3];
       }      default:      this._error(['NEW_TARGET', 'IMPORT_META'], "Invalid MetaProperty");    }
   }
@@ -1534,12 +1534,12 @@ parseImportSpecifierListTail() {
     this._error(['IDENTIFIER', 'DEFAULT'], "Invalid ImportSpecifier");
   }
 
-parseImportDefaultSpecifier() {const $$1 = this._match('IDENTIFIER');
+parseImportDefaultSpecifier() {const $$1 = this.parseIdentifier();
       return $$1;  }
 
 parseImportNamespaceSpecifier() {const $$1 = this._match('IMPORT_ALL');
       const $$2 = this._match('AS');
-      const $$3 = this._match('IDENTIFIER');
+      const $$3 = this.parseIdentifier();
       return ["*", $$3];  }
 
   parseExport() {
@@ -1807,7 +1807,7 @@ parseThis() {
   }
 
 parseThisProperty() {const $$1 = this._match('@');
-      const $$2 = this._match('PROPERTY');
+      const $$2 = this.parseProperty();
       return [".", "this", $$2];  }
 
   parseArray() {

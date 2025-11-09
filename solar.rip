@@ -1469,7 +1469,6 @@ class Generator
 
     # For tail patterns, manually construct the action
     # Pattern: Body → Line BodyTail with action [1, ...2]
-    # Should become: const $$1 = parseLine(); const $$2 = parseBodyTail(); return [$$1, ...$$2];
     resultVars = []
     for symbol, i in rule.symbols when symbol isnt ''
       resultVars.push "$$#{i + 1}"
@@ -1648,7 +1647,8 @@ class Generator
         symbolType = @types[symbol]
         isTrivial = symbolType.rules.length is 1 and
                     symbolType.rules[0].symbols.length is 1 and
-                    not @types[symbolType.rules[0].symbols[0]]
+                    not @types[symbolType.rules[0].symbols[0]] and
+                    symbol not in ['Identifier', 'Property']  # Don't inline these - might have special handling
 
         if isTrivial
           # Inline trivial function - call _match directly
